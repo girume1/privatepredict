@@ -6,6 +6,8 @@ PrivatePredict lets football fans commit to predictions privately before a match
 
 > **Status:** Wave 1 MVP implemented and exercised live on the Midnight Preview testnet — see [Verification status](#verification-status) below for exactly what has and has not been run against real testnet infrastructure.
 
+> **Live demo:** [privatepredict.vercel.app](https://privatepredict.vercel.app) — the real UI, hosted and reachable by anyone. Browsing the match list works with no setup. Connecting a wallet and actually submitting/revealing a prediction still requires your own Lace wallet (funded on Preview testnet) and your own local Docker proof server — see [DEPLOYMENT.md](./DEPLOYMENT.md) — hosting the frontend doesn't remove that requirement, since Midnight's own architecture requires proving to happen locally with your private data.
+
 ## Problem
 
 Most football prediction platforms require users to reveal their picks before an event. This creates three problems:

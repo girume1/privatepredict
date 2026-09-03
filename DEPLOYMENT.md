@@ -7,6 +7,22 @@ Wave 1 scope reminder: one contract deployment is exactly one match. There
 is no multi-match registry and no `createMatch` circuit — creating a new
 match means deploying a new contract instance.
 
+## Live deployment
+
+The participant app (`web/`, i.e. `index.html`/`App.tsx`) is hosted at
+[privatepredict.vercel.app](https://privatepredict.vercel.app) (npm
+workspaces monorepo — the Build Command there is overridden to
+`cd .. && npm run build` so `contract` and `api` build, producing their
+`dist/` output, before `web` builds and imports from them). The organizer
+tool (`deploy.html`/`DeployApp.tsx`) is not currently hosted separately —
+run it locally per Step 1 below.
+
+Hosting the frontend does **not** remove the wallet/proof-server
+prerequisites below — every visitor still needs their own funded Lace
+wallet and their own local Docker proof server, because Midnight's
+architecture requires proving to happen locally, using private witness
+data (see the Prerequisites section for why).
+
 ## Verification status
 
 **Verified live**, on the Midnight Preview testnet, via a real Lace wallet
