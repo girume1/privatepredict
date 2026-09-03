@@ -1,0 +1,17 @@
+{
+  "name": "privatepredict",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "contract",
+    "api",
+    "web"
+  ],
+  "scripts": {
+    "devnet": "cd contract && npm run setup",
+    "test:contract": "cd contract && npm test",
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces"
+  }
+}

@@ -1,0 +1,122 @@
+pragma language_version 0.23;
+
+import CompactStandardLibrary;
+
+// Match state machine
+export enum MatchState {
+  OPEN,
+  CLOSED,
+  RESULT_PUBLISHED
+}
+
+// Prediction state machine
+export enum PredictionState {
+  NO_COMMITMENT,
+  COMMITTED,
+  REVEALED
+}
+
+// Public ledger state
+export ledger matchId: Bytes<32>;
+export ledger teamA: Opaque<"string">;
+export ledger teamB: Opaque<"string">;
+// Deadline is stored for display only. Wave 1 has no verified on-chain clock
+// primitive (confirmed against compact 0.31.1: no time/now/blockTime binding
+// exists in CompactStandardLibrary), so it is NOT enforced by this contract.
+// Client-side deadline checks are a UX convenience, not a security guarantee.
+export ledger deadline: Field;
+export ledger matchState: MatchState;
+export ledger matchResult: Maybe<Bytes<32>>;
+export ledger organizer: Bytes<32>;
+export ledger predictionState: PredictionState;
+export ledger commitment: Bytes<32>;
+export ledger predictionOwner: Bytes<32>;
+export ledger revealedPrediction: Maybe<Bytes<32>>;
+export ledger points: Field;
+
+// Private witnesses
+witness localParticipantSecretKey(): Bytes<32>;
+witness localOrganizerSecretKey(): Bytes<32>;
+
+// Helper function to derive a participant identifier, scoped to this match.
+// Uses matchId (already public) rather than the prediction salt, so identity
+// derivation never touches the pre-reveal secret.
+export circuit participantId(secretKey: Bytes<32>, matchIdParam: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<3, Bytes<32>>>([pad(32, "pp:pid:"), matchIdParam, secretKey]);
+}
+
+// Helper function to compute prediction commitment
+export circuit computeCommitment(prediction: Bytes<32>, salt: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<2, Bytes<32>>>([prediction, salt]);
+}
+
+// Helper function to derive organizer public key
+export circuit organizerPublicKey(secretKey: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<2, Bytes<32>>>([pad(32, "pp:organizer:"), secretKey]);
+}
+
+constructor(
+  matchIdParam: Bytes<32>,
+  teamAParam: Opaque<"string">,
+  teamBParam: Opaque<"string">,
+  deadlineParam: Field,
+  organizerSecretKey: Bytes<32>,
+) {
+  matchId = disclose(matchIdParam);
+  teamA = disclose(teamAParam);
+  teamB = disclose(teamBParam);
+  deadline = disclose(deadlineParam);
+  matchState = MatchState.OPEN;
+  matchResult = none<Bytes<32>>();
+  organizer = disclose(organizerPublicKey(organizerSecretKey));
+  predictionState = PredictionState.NO_COMMITMENT;
+  commitment = disclose(pad(32, ""));
+  predictionOwner = disclose(pad(32, ""));
+  revealedPrediction = none<Bytes<32>>();
+  points = 0;
+}
+
+// Commit-only: no salt parameter. The salt must never leave the participant's
+// device before reveal, otherwise an observer could brute-force the three
+// possible commitments (HOME/DRAW/AWAY) and learn the prediction early.
+export circuit submitPrediction(newCommitment: Bytes<32>): [] {
+  assert(matchState == MatchState.OPEN, "Match is not open for predictions");
+  assert(predictionState == PredictionState.NO_COMMITMENT, "Prediction already submitted");
+
+  predictionOwner = disclose(participantId(localParticipantSecretKey(), matchId));
+  commitment = disclose(newCommitment);
+  predictionState = PredictionState.COMMITTED;
+}
+
+export circuit closeMatch(): [] {
+  assert(matchState == MatchState.OPEN, "Match is not open");
+  assert(organizer == organizerPublicKey(localOrganizerSecretKey()), "Only the organizer can close the match");
+
+  matchState = MatchState.CLOSED;
+}
+
+export circuit publishResult(result: Bytes<32>): [] {
+  assert(matchState == MatchState.CLOSED, "Match is not closed");
+  assert(organizer == organizerPublicKey(localOrganizerSecretKey()), "Only the organizer can publish the result");
+
+  // TODO(Wave 1 limitation): result is not yet restricted to a canonical
+  // HOME/DRAW/AWAY encoding. Deferred until the API layer defines that
+  // encoding, per explicit instruction not to guess it here.
+  matchResult = disclose(some<Bytes<32>>(result));
+  matchState = MatchState.RESULT_PUBLISHED;
+}
+
+// Reveal is only permitted once the organizer has published the result, so
+// the participant genuinely commits before the outcome is known.
+export circuit revealPrediction(prediction: Bytes<32>, salt: Bytes<32>): [] {
+  assert(matchState == MatchState.RESULT_PUBLISHED, "Result not yet published");
+  assert(predictionState == PredictionState.COMMITTED, "No prediction to reveal");
+  assert(predictionOwner == participantId(localParticipantSecretKey(), matchId), "Only the original participant can reveal this prediction");
+
+  const expectedCommitment = computeCommitment(prediction, salt);
+  assert(expectedCommitment == commitment, "Invalid prediction or salt");
+
+  revealedPrediction = disclose(some<Bytes<32>>(prediction));
+  points = disclose(prediction == matchResult.value) ? 3 : 0;
+  predictionState = PredictionState.REVEALED;
+}
