@@ -1,10 +1,38 @@
 # PrivatePredict Architecture
 
+## Wave 1 verified implementation note
+
+One contract deployment represents exactly one match, with one commitment
+slot — there is no match registry, no `createMatch` circuit, and nothing
+for a leaderboard to aggregate. The diagram and component table below are
+accurate at the architectural level; see `docs/data-model.md` and
+`docs/api-spec.md` for the verified concrete shapes, and `DEPLOYMENT.md`
+for what has actually been run live on the Midnight Preview testnet versus
+only unit-tested.
+
 ## Overview
 
 PrivatePredict is a privacy-preserving football prediction application built on Midnight.
 
-The system separates public, on-chain verification data from private user-held prediction data.
+The system is a direct exercise of Midnight's dual-ledger model — public,
+on-chain state alongside private, participant-held state, connected by
+zero-knowledge-provable circuits rather than a trusted server holding
+secrets. Concretely:
+
+- **Public ledger state** (the compiled contract's generated `Ledger`
+  type): match identifier, team names, deadline, lifecycle status, the
+  organizer's public key, the prediction commitment, and — once revealed —
+  the outcome and score. See `docs/data-model.md` for the exact shape.
+- **Private local state** (`PrivatePredictPrivateState`): the
+  participant's and organizer's secret keys, used only inside pure
+  circuits (`participantId`, `organizerPublicKey`, `computeCommitment`) to
+  prove a fact about the public state — e.g. "the caller closing this
+  match holds the organizer's secret key" — without ever putting the
+  secret itself on-chain.
+
+`submitPrediction` (commitment-only) and `revealPrediction`
+(commitment-plus-ownership verification) are this pattern applied to a
+football prediction.
 
 ```text
 React + TypeScript frontend
