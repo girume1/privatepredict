@@ -1,37 +1,40 @@
 # TypeScript API Specification
 
-## Wave 1 verified implementation note
+This document describes the verified Wave 1 implementation of `@privatepredict/api`.
+See `api/src/index.ts` for the canonical source.
 
-The "Intended functions" list below (`createMatch`, `getMatches`,
-`getMyPredictionStatus`, `getLeaderboard`) describes a multi-match API that
-does not exist. The verified `api/src/index.ts` (`PredictionBoardAPI`) is a
-per-deployment facade: one instance represents one already-deployed (or
-newly deployed) match, not a registry of many. There is no `createMatch`
-call, no match list, and no leaderboard query — see
-`contract/src/managed/prediction-board/contract/index.d.ts` for the ledger
-shape this is built on.
+For Wave 2 plans (multi-match registry, `getMatches`, `getLeaderboard`), see
+`CHANGELOG.md`'s "Wave 2 — Planned" section.
 
 ## Principle
 
-The TypeScript layer connects the React interface to the generated APIs from the compiled Compact contract.
+`@privatepredict/api` is a per-deployment facade over the compiled Compact
+contract. One `PredictionBoardAPI` instance represents exactly one deployed
+match — there is no match registry, no `createMatch` call, and no leaderboard
+query. A browser session is connected to exactly one contract address at a time.
 
-No ordinary backend receives predictions or salts before reveal.
+No conventional backend receives predictions or salts before reveal.
 
 ## Client responsibilities
 
 - Connect to the user's Midnight-compatible wallet.
-- Read public match state from the Midnight ledger.
-- Generate a unique random 32-byte salt locally.
-- Create and persist a local prediction record.
-- Calculate the commitment using the generated contract-compatible mechanism.
-- Submit the commitment transaction.
-- Request local proof generation through the proof server.
-- Reveal only when the user explicitly confirms.
+- Read public match state from the Midnight ledger via `state$`.
+- Generate a unique random 32-byte salt locally (`generateSalt()`).
+- Compute the commitment locally (`computeCommitment(prediction, salt)`).
+- Persist the pending `{prediction, salt}` pair locally before submitting.
+- Submit only the commitment on-chain (`submitPrediction(commitment)`).
+- Reveal only when the user explicitly confirms and the result is published.
 
-## Verified API (`@privatepredict/api`)
+## API reference (`@privatepredict/api`)
+
+### `PredictionBoardAPI`
 
 ```ts
 class PredictionBoardAPI {
+  /**
+   * Deploys a new PredictionBoard contract — i.e. creates a new match.
+   * Returns an API instance bound to the newly deployed contract address.
+   */
   static deploy(
     providers: PredictionBoardProviders,
     matchId: Uint8Array,
@@ -41,43 +44,121 @@ class PredictionBoardAPI {
     organizerSecretKey: Uint8Array,
   ): Promise<PredictionBoardAPI>;
 
+  /**
+   * Joins an already-deployed PredictionBoard contract at contractAddress.
+   * Returns an API instance bound to that address.
+   */
   static join(
     providers: PredictionBoardProviders,
     contractAddress: ContractAddress,
   ): Promise<PredictionBoardAPI>;
 
+  /** The address of the contract this instance is bound to. */
   readonly deployedContractAddress: ContractAddress;
+
+  /**
+   * Observable combining public ledger state with locally-held identity keys.
+   * Emits a new PredictionBoardDerivedState whenever either source changes.
+   */
   readonly state$: Observable<PredictionBoardDerivedState>;
 
+  /** Submit a commitment on-chain. The salt is never a parameter. */
   submitPrediction(commitment: Uint8Array): Promise<void>;
+
+  /** Organizer-only. Transitions matchState from OPEN to CLOSED. */
   closeMatch(): Promise<void>;
+
+  /** Organizer-only. Transitions matchState from CLOSED to RESULT_PUBLISHED. */
   publishResult(result: Uint8Array): Promise<void>;
+
+  /**
+   * Reveal the original prediction and salt. Only accepted once
+   * matchState is RESULT_PUBLISHED and the caller is the original committer.
+   */
   revealPrediction(prediction: Uint8Array, salt: Uint8Array): Promise<void>;
 }
 ```
 
-`state$` combines public ledger state with the locally-held identity keys
-into a `PredictionBoardDerivedState`, including `isOrganizer` and
-`isPredictionOwner` booleans computed by recomputing the relevant public
-key/ID from the local secret key and comparing to the ledger — never by
-trusting a client-side flag.
+### `PredictionBoardDerivedState`
 
-Deploying (creating a match) and joining (participating in one) are both
-handled by this one class; there is no separate multi-match "list" or
-"create" endpoint, because there is nothing to list — a browser session is
-connected to exactly one contract address at a time.
+The shape emitted by `state$`, combining ledger state with locally-derived
+identity checks:
+
+```ts
+type PredictionBoardDerivedState = {
+  matchId: Uint8Array;
+  teamA: string;
+  teamB: string;
+  deadline: bigint;
+  matchState: MatchState;           // OPEN | CLOSED | RESULT_PUBLISHED
+  matchResult: Outcome | null;      // null until published
+  organizer: Uint8Array;
+  predictionState: PredictionState; // NO_COMMITMENT | COMMITTED | REVEALED
+  commitment: Uint8Array;
+  points: bigint;
+  revealedPrediction: Outcome | null; // null until revealed
+  /** True when the locally-held organizer secret key matches this deployment's organizer. */
+  isOrganizer: boolean;
+  /** True when the locally-held participant secret key matches the committed prediction's owner. */
+  isPredictionOwner: boolean;
+};
+```
+
+`isOrganizer` and `isPredictionOwner` are computed by recomputing the relevant
+public key/ID from the local secret key and comparing against the ledger value
+— never by trusting a client-side flag.
+
+### Utility exports
+
+```ts
+/** Generate a cryptographically random 32-byte secret key. */
+function generateSecretKey(): Uint8Array;
+
+/** Generate a cryptographically random 32-byte salt for a prediction commitment. */
+function generateSalt(): Uint8Array;
+
+/** Encode a HOME | DRAW | AWAY outcome as a Bytes<32> circuit value. */
+function encodeOutcome(outcome: Outcome): Uint8Array;
+
+/** Decode a Bytes<32> circuit value back to a HOME | DRAW | AWAY outcome. */
+function decodeOutcome(bytes: Uint8Array): Outcome;
+
+/** Compute persistentHash([prediction, salt]) — matches the contract's computeCommitment circuit. */
+function computeCommitment(prediction: Uint8Array, salt: Uint8Array): Uint8Array;
+
+/** Create a PrivatePredictPrivateState from a participant and organizer secret key. */
+function createPrivatePredictPrivateState(
+  participantSecretKey: Uint8Array,
+  organizerSecretKey: Uint8Array,
+): PrivatePredictPrivateState;
+```
+
+## Providers
+
+`PredictionBoardProviders` wires up the four SDK providers required by the contract:
+
+| Provider | Source | Role |
+|---|---|---|
+| `privateStateProvider` | `persistentPrivateStateProvider()` | Reads/writes private state (scoped per contract address, persisted in `localStorage`) |
+| `zkConfigProvider` | `FetchZkConfigProvider` | Fetches ZK keys from the same origin as the web app |
+| `proofProvider` | `createProofProvider(provingProvider)` | Delegates proof generation to the connected Lace wallet + local proof server |
+| `publicDataProvider` | `indexerPublicDataProvider` | Reads public ledger state from the Midnight indexer |
 
 ## Local state safety
 
-- Store salts and unrevealed predictions only in the user's local private-state mechanism.
-- Do not log, send, upload, or commit salts.
-- Do not put private predictions in URLs, query strings, analytics events, or browser-console logs.
-- Provide a clear backup/recovery warning before the user submits a commitment.
-- **Wave 1 wraps the verified official reference's in-memory private-state
-  provider** (`web/src/inMemoryPrivateStateProvider.ts`) **with a
-  `localStorage`-backed layer** (`web/src/persistentPrivateStateProvider.ts`),
-  scoped per contract address. This was added after the in-memory-only
-  version demonstrably lost the participant's identity and pending
-  prediction on a real testnet reconnect — see `DEPLOYMENT.md`. Persisted
-  data still never leaves the device; it just survives a reload or
-  reconnect instead of being wiped by one.
+- Salts and unrevealed predictions are stored only in the user's local private-state
+  (`web/src/persistentPrivateStateProvider.ts`, scoped per contract address,
+  persisted in `localStorage`).
+- Private data is never logged, sent to a backend, included in URLs, query strings,
+  analytics events, or browser-console output.
+- The pending `{prediction, salt}` pair is persisted in `localStorage` before the
+  commitment transaction is submitted, so a reload or reconnect before reveal does
+  not lose it (`web/src/pendingPrediction.ts`).
+- Persisted data never leaves the device. Clearing site data, using a different
+  browser, or using a different device permanently loses access to that pending
+  prediction — there is no cross-device recovery.
+
+## Error handling
+
+Circuit call failures are wrapped in `PrivatePredictError` with typed error codes.
+See `api/src/errors.ts`.

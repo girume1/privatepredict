@@ -1,6 +1,15 @@
 import { useEffect, useState } from "react";
 import { MatchState, PredictionState } from "@privatepredict/contract";
 import {
+  Clock,
+  LockKeyhole,
+  CheckCircle2,
+  Eye,
+  AlertTriangle,
+  Wallet,
+  ShieldOff,
+} from "lucide-react";
+import {
   MatchStateTimeline,
   matchStateLabel,
 } from "../components/MatchStateTimeline.js";
@@ -10,7 +19,9 @@ import { CommitPredictionDialog } from "../components/CommitPredictionDialog.js"
 import { RevealPredictionDialog } from "../components/RevealPredictionDialog.js";
 import { OrganizerControls } from "../components/OrganizerControls.js";
 import { HowItWorks } from "../components/HowItWorks.js";
-import { EmptyState } from "../components/EmptyState.js";
+import { StatusCard } from "../components/StatusCard.js";
+import { ScoreReveal } from "../components/ScoreReveal.js";
+import { MatchSkeleton } from "../components/MatchSkeleton.js";
 import { useTransactionFlow } from "../useTransactionFlow.js";
 import { bytesToHex, truncateHex } from "../hex.js";
 import type {
@@ -28,19 +39,7 @@ const SUCCESS_VIEW_MS = 1_500;
 interface MatchDetailProps {
   match: Match | null;
   predictionStatus: PredictionStatus | null;
-  /**
-   * Wallet connection is app-level state, independent of whether a match is
-   * configured — WalletConnect itself lives in App.tsx, not here. This
-   * screen only needs to know whether it can show prediction/reveal actions.
-   */
   walletConnected: boolean;
-  /**
-   * True when the connected identity's imported organizer secret key
-   * matches this deployment's organizer (see OrganizerKeyInput/App.tsx).
-   * Organizer controls are shown alongside participant controls, not in
-   * place of them — an organizer can also hold their own participant slot
-   * in the same session.
-   */
   isOrganizer: boolean;
   onSubmitPrediction: (outcome: Outcome) => Promise<ActionResult>;
   onRevealPrediction: () => Promise<ActionResult>;
@@ -52,20 +51,11 @@ function formatDeadline(ms: number): string {
   return new Date(ms).toLocaleString();
 }
 
-/**
- * Maps the on-chain slot stage to the Privacy Panel. The panel also
- * receives ownsPrediction, so it decides how much personal copy ("your…")
- * it can truthfully show to this viewer.
- */
 function privacyStageFor(
   predictionState: PredictionState | undefined,
 ): PrivacyStage {
-  if (predictionState === PredictionState.REVEALED) {
-    return "revealed";
-  }
-  if (predictionState === PredictionState.COMMITTED) {
-    return "committed";
-  }
+  if (predictionState === PredictionState.REVEALED) return "revealed";
+  if (predictionState === PredictionState.COMMITTED) return "committed";
   return "before-commitment";
 }
 
@@ -84,8 +74,7 @@ export function MatchDetail({
 
   const commitFlow = useTransactionFlow();
   const revealFlow = useTransactionFlow();
-  // Destructure the stable members so effects and JSX never depend on the
-  // fresh hook object identity (which would re-arm timers on every render).
+
   const commitPhase = commitFlow.phase;
   const commitError = commitFlow.error;
   const startCommit = commitFlow.start;
@@ -95,57 +84,46 @@ export function MatchDetail({
   const startReveal = revealFlow.start;
   const resetReveal = revealFlow.reset;
 
-  // A real success (promise resolved) shows "Confirmed" briefly, then the
-  // dialog closes and the on-chain derived state takes over the view.
-  // resetCommit/resetReveal and the state setters are stable identities,
-  // so each timer is armed exactly once when its phase reaches "success".
   useEffect(() => {
-    if (commitPhase !== "success") {
-      return;
-    }
+    if (commitPhase !== "success") return;
     const t = window.setTimeout(() => {
       resetCommit();
       setPendingOutcome(null);
     }, SUCCESS_VIEW_MS);
     return () => window.clearTimeout(t);
-  }, [commitPhase, resetCommit, setPendingOutcome]);
+  }, [commitPhase, resetCommit]);
 
   useEffect(() => {
-    if (revealPhase !== "success") {
-      return;
-    }
+    if (revealPhase !== "success") return;
     const t = window.setTimeout(() => {
       resetReveal();
       setRevealOpen(false);
     }, SUCCESS_VIEW_MS);
     return () => window.clearTimeout(t);
-  }, [revealPhase, resetReveal, setRevealOpen]);
+  }, [revealPhase, resetReveal]);
 
-  // Date.now() is impure — read it in an effect, not during render, and
-  // re-check on an interval so this flips without an external re-render
-  // trigger. Mirrors OrganizerControls's own deadline gate: a client-side
-  // convenience only, matching it here for UX consistency, not because the
-  // contract enforces the deadline on submission either.
   const deadline = match?.deadline;
   const [deadlinePassed, setDeadlinePassed] = useState(false);
   useEffect(() => {
-    if (deadline === undefined) {
-      return;
-    }
+    if (deadline === undefined) return;
     const check = () => setDeadlinePassed(Date.now() >= deadline);
     check();
     const interval = setInterval(check, 1000);
     return () => clearInterval(interval);
   }, [deadline]);
 
+  // Wallet connected but ledger data not yet arrived — show skeleton
+  if (walletConnected && !match) {
+    return <MatchSkeleton />;
+  }
+
+  // No wallet and no match — generic prompt
   if (!match) {
     return (
-      <EmptyState
-        message={
-          walletConnected
-            ? "Waiting for this match's data from the ledger."
-            : "Connect a wallet to load this match's details."
-        }
+      <StatusCard
+        icon={<Wallet size={20} />}
+        title="Connect a wallet to load this match"
+        variant="muted"
       />
     );
   }
@@ -156,11 +134,7 @@ export function MatchDetail({
   const hasLocalPrediction = predictionStatus?.hasLocalPrediction ?? false;
 
   function handleCommitConfirm() {
-    if (!pendingOutcome) {
-      return;
-    }
-    // start() sets the flow busy synchronously, so Confirm is disabled the
-    // instant the user clicks and duplicate submissions are impossible.
+    if (!pendingOutcome) return;
     void startCommit(() => onSubmitPrediction(pendingOutcome));
   }
 
@@ -180,9 +154,10 @@ export function MatchDetail({
 
   return (
     <div className="match-detail">
-      <h1>
-        {match.teamA} vs {match.teamB}
+      <h1 className="match-detail-heading">
+        {match.teamA} <span className="match-detail-vs">vs</span> {match.teamB}
       </h1>
+
       <MatchStateTimeline current={match.matchState} />
 
       <dl className="match-info-card">
@@ -224,20 +199,31 @@ export function MatchDetail({
         />
       )}
 
-      {match.matchState === MatchState.RESULT_PUBLISHED &&
-        match.matchResult && <p>Result: {match.matchResult}</p>}
+      {/* ── Result published banner ── */}
+      {match.matchState === MatchState.RESULT_PUBLISHED && match.matchResult && (
+        <StatusCard
+          icon={<CheckCircle2 size={20} />}
+          title={`Result: ${match.matchResult}`}
+          variant="info"
+        />
+      )}
 
+      {/* ── OPEN state: no prediction yet ── */}
       {match.matchState === MatchState.OPEN &&
         predictionState === PredictionState.NO_COMMITMENT &&
         (!walletConnected ? (
-          <p>Connect a wallet to submit a prediction.</p>
+          <StatusCard
+            icon={<Wallet size={20} />}
+            title="Connect your wallet to submit a prediction"
+            variant="muted"
+          />
         ) : deadlinePassed ? (
-          <p>
-            The submission deadline has passed, so this app no longer offers new
-            predictions here. This is a client-side convenience only — the
-            contract itself does not enforce the deadline, and the match stays
-            OPEN until the organizer closes it.
-          </p>
+          <StatusCard
+            icon={<Clock size={20} />}
+            title="Submission deadline has passed"
+            body="This app no longer offers new predictions here. The match stays OPEN on-chain until the organizer closes it — the contract itself does not enforce deadlines."
+            variant="warning"
+          />
         ) : (
           <>
             <HowItWorks />
@@ -250,65 +236,101 @@ export function MatchDetail({
           </>
         ))}
 
+      {/* ── CLOSED: no prediction submitted ── */}
       {match.matchState === MatchState.CLOSED &&
         predictionState === PredictionState.NO_COMMITMENT && (
-          <p>The submission window has closed.</p>
+          <StatusCard
+            icon={<LockKeyhole size={20} />}
+            title="Submission window has closed"
+            variant="muted"
+          />
         )}
 
+      {/* ── Slot held by someone else ── */}
       {predictionState === PredictionState.COMMITTED && !isOwner && (
-        <p>
-          This match&apos;s single prediction slot is already held by another
-          participant, so it cannot be submitted to or revealed from this
-          browser.
-        </p>
+        <StatusCard
+          icon={<ShieldOff size={20} />}
+          title="This match's prediction slot is held by another participant"
+          body="It cannot be submitted to or revealed from this browser."
+          variant="muted"
+        />
       )}
 
+      {/* ── Owner committed, awaiting result ── */}
       {predictionState === PredictionState.COMMITTED &&
         isOwner &&
         match.matchState === MatchState.OPEN && (
-          <p>Your prediction has been submitted and is awaiting the result.</p>
+          <StatusCard
+            icon={<LockKeyhole size={20} />}
+            title="Your prediction is committed"
+            body="Locked on-chain and private — awaiting the result. You can reveal once the organizer publishes it."
+            variant="success"
+          />
         )}
 
+      {/* ── Owner committed, match closed ── */}
       {predictionState === PredictionState.COMMITTED &&
         isOwner &&
         match.matchState === MatchState.CLOSED && (
-          <p>
-            The match is closed. Your prediction will be revealable once the
-            result is published.
-          </p>
+          <StatusCard
+            icon={<Clock size={20} />}
+            title="Match closed — waiting for result"
+            body="Your prediction is safe. You'll be able to reveal it once the result is published."
+            variant="info"
+          />
         )}
 
+      {/* ── Owner committed, result published — reveal action ── */}
       {predictionState === PredictionState.COMMITTED &&
         isOwner &&
         match.matchState === MatchState.RESULT_PUBLISHED &&
         (!walletConnected ? (
-          <p>
-            The result is published. Reconnect your wallet to reveal your
-            prediction.
-          </p>
+          <StatusCard
+            icon={<Wallet size={20} />}
+            title="Reconnect your wallet to reveal"
+            body="The result is published. Reconnect to reveal your prediction and see your score."
+            variant="info"
+          />
         ) : hasLocalPrediction ? (
-          <button type="button" onClick={() => setRevealOpen(true)}>
-            Reveal Prediction
-          </button>
+          <div className="reveal-action">
+            <StatusCard
+              icon={<Eye size={20} />}
+              title="Ready to reveal"
+              body="The result is published. Reveal your prediction to verify it on-chain and claim your score."
+              variant="info"
+            />
+            <button type="button" onClick={() => setRevealOpen(true)}>
+              Reveal Prediction
+            </button>
+          </div>
         ) : (
-          <p>
-            Your reveal data (the original prediction and salt) is not available
-            in this browser, so this prediction cannot be revealed from here.
-          </p>
+          <StatusCard
+            icon={<AlertTriangle size={20} />}
+            title="Reveal data not found in this browser"
+            body="The original prediction and salt are not available here, so this prediction cannot be revealed from this device."
+            variant="warning"
+          />
         ))}
 
-      {predictionState === PredictionState.REVEALED && isOwner && (
-        <p>
-          You predicted {predictionStatus?.revealedPrediction}. Result:{" "}
-          {match.matchResult}. Points: {match.points}.
-        </p>
-      )}
+      {/* ── Revealed: score summary ── */}
+      {predictionState === PredictionState.REVEALED &&
+        isOwner &&
+        predictionStatus?.revealedPrediction &&
+        match.matchResult && (
+          <ScoreReveal
+            prediction={predictionStatus.revealedPrediction}
+            result={match.matchResult}
+            points={match.points}
+          />
+        )}
 
       {predictionState === PredictionState.REVEALED && !isOwner && (
-        <p>
-          This match&apos;s slot has already been revealed by another
-          participant. The published result is shown above.
-        </p>
+        <StatusCard
+          icon={<CheckCircle2 size={20} />}
+          title="This match has been revealed"
+          body="The slot was revealed by its owner. The published result is shown above."
+          variant="muted"
+        />
       )}
 
       <PrivacyPanel

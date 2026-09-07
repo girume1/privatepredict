@@ -56,17 +56,20 @@ export function MatchList({
         <div className="empty-state" role="status">
           <CalendarX2 aria-hidden="true" size={32} />
           <p>
-            No matches saved yet. Add a match's contract address below — the
-            organizer shares this after deploying (see DEPLOYMENT.md).
+            No matches saved yet. Add a match&apos;s contract address below —
+            the organizer shares this after deploying (see DEPLOYMENT.md).
           </p>
         </div>
       ) : (
-        <ul className="match-list-items">
+        // role="list" restores list semantics in Safari + VoiceOver when
+        // list-style is removed via CSS (known Safari/VoiceOver behaviour).
+        <ul className="match-list-items" role="list">
           {matches.map((m) => (
             <li key={m.address} className="match-list-item">
               <button
                 type="button"
                 className="match-list-select"
+                aria-label={`Open match: ${m.label}`}
                 onClick={() => onSelect(m.address)}
               >
                 <span>{m.label}</span>
@@ -84,7 +87,15 @@ export function MatchList({
         </ul>
       )}
 
-      <div className="match-list-add">
+      {/* Wrapped in <form> so pressing Enter in the address field submits —
+          keyboard users should not have to Tab all the way to the button. */}
+      <form
+        className="match-list-add"
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleAdd();
+        }}
+      >
         <div className="deploy-field">
           <label htmlFor="match-address">Contract address</label>
           <input
@@ -92,6 +103,8 @@ export function MatchList({
             value={address}
             onChange={(e) => setAddress(e.target.value)}
             placeholder="Paste a deployed match's contract address"
+            aria-invalid={error ? "true" : undefined}
+            aria-describedby={error ? "match-address-error" : undefined}
           />
         </div>
         <div className="deploy-field">
@@ -103,15 +116,15 @@ export function MatchList({
             placeholder="e.g. Arsenal vs Chelsea"
           />
         </div>
-        <button type="button" onClick={handleAdd}>
+        <button type="submit">
           <Plus aria-hidden="true" size={16} /> Add match
         </button>
         {error && (
-          <p role="alert" className="deploy-error">
+          <p id="match-address-error" role="alert" className="deploy-error">
             {error}
           </p>
         )}
-      </div>
+      </form>
     </div>
   );
 }

@@ -57,12 +57,14 @@ export function CommitPredictionDialog({
           this device — reveal later from the same browser and device.
         </li>
       </ul>
-      <label>
+      <label htmlFor="commit-acknowledge">
         <input
+          id="commit-acknowledge"
           type="checkbox"
           checked={acknowledged}
           onChange={(e) => setAcknowledged(e.target.checked)}
           disabled={isPending}
+          aria-required="true"
         />
         I understand I must reveal from the same browser and device where I
         submitted.

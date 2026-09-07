@@ -5,7 +5,7 @@
   --color-surface-alt: #1e1e25;
   --color-border: #2c2c34;
   --color-text: #f4f3f0;
-  --color-text-muted: #a9a8b3;
+  --color-text-muted: #bdbcc8;
   --color-accent: #a52d43;
   --color-accent-hover: #c23b53;
   --color-accent-contrast: #ffffff;
@@ -68,7 +68,7 @@ main {
 /* Buttons — a single deliberate accent-filled style for primary actions.
    Kept simple: no separate "secondary" variant yet, since introducing one
    without a use case would be premature. */
-button:not(.match-list-select):not(.prediction-option) {
+button:not(.match-list-select):not(.key-input-toggle) {
   background: var(--color-accent);
   color: var(--color-accent-contrast);
   border: 1px solid var(--color-accent);
@@ -76,7 +76,7 @@ button:not(.match-list-select):not(.prediction-option) {
   padding: 0.5rem 1rem;
 }
 
-button:not(.match-list-select):not(.prediction-option):hover:not(:disabled) {
+button:not(.match-list-select):not(.key-input-toggle):hover:not(:disabled) {
   background: var(--color-accent-hover);
   border-color: var(--color-accent-hover);
 }
@@ -273,21 +273,44 @@ button:not(.match-list-select):not(.prediction-option):hover:not(:disabled) {
   margin: 0.75rem 0;
 }
 
-.prediction-option {
+/* Visually hidden radio input — accessible to AT, invisible to sighted users */
+.prediction-option-radio {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.prediction-option-label {
   flex: 1;
   min-width: 4.5rem;
+  cursor: pointer;
+}
+
+.prediction-option-label.selected .prediction-option {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-accent-contrast);
+}
+
+/* Focus ring on the label when the hidden radio is focused */
+.prediction-option-radio:focus-visible + .prediction-option {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.prediction-option {
+  display: block;
+  width: 100%;
   padding: 0.75rem 0.5rem;
   border: 1px solid var(--color-border);
   border-radius: 0.375rem;
   background: var(--color-surface-alt);
   color: var(--color-text);
   font-weight: 600;
-}
-
-.prediction-option.selected {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-  color: var(--color-accent-contrast);
+  text-align: center;
+  user-select: none;
 }
 
 .privacy-panel {
@@ -567,4 +590,302 @@ button:not(.match-list-select):not(.prediction-option):hover:not(:disabled) {
   padding: 1rem;
   margin-top: 1rem;
   background: var(--color-surface);
+}
+
+/* ── Match detail heading ─────────────────────────────────────────────────── */
+
+.match-detail-heading {
+  font-size: clamp(1.25rem, 5vw, 1.75rem);
+  font-weight: 700;
+  margin: 0 0 0.25rem;
+  line-height: 1.2;
+}
+
+.match-detail-vs {
+  color: var(--color-text-muted);
+  font-weight: 400;
+  font-size: 0.85em;
+}
+
+/* ── Reveal action wrapper ────────────────────────────────────────────────── */
+
+.reveal-action {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* ── StatusCard ───────────────────────────────────────────────────────────── */
+
+.status-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+  padding: 0.875rem 1rem;
+  margin: 1rem 0;
+  background: var(--color-surface);
+}
+
+.status-card--info {
+  border-color: #3b6ea5;
+  background: rgb(59 110 165 / 0.1);
+}
+
+.status-card--success {
+  border-color: #2d7a4a;
+  background: var(--color-success-bg);
+}
+
+.status-card--warning {
+  border-color: #8a6000;
+  background: rgb(250 185 0 / 0.08);
+}
+
+.status-card--muted {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+}
+
+.status-card-icon {
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+  color: inherit;
+}
+
+.status-card--info .status-card-icon    { color: #6ea8d8; }
+.status-card--success .status-card-icon { color: var(--color-success); }
+.status-card--warning .status-card-icon { color: #f0b429; }
+.status-card--muted .status-card-icon   { color: var(--color-text-muted); }
+
+.status-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.status-card-title {
+  margin: 0;
+  font-weight: 600;
+  font-size: 0.9375rem;
+}
+
+.status-card-body {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+/* ── ScoreReveal ──────────────────────────────────────────────────────────── */
+
+.score-reveal {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  border-radius: 0.625rem;
+  border: 1px solid var(--color-border);
+  padding: 1.25rem;
+  margin: 1.25rem 0;
+}
+
+.score-reveal--correct {
+  border-color: #2d7a4a;
+  background: var(--color-success-bg);
+}
+
+.score-reveal--incorrect {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+}
+
+.score-reveal-icon {
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.score-reveal--correct .score-reveal-icon { color: var(--color-success); }
+.score-reveal--incorrect .score-reveal-icon { color: var(--color-text-muted); }
+
+.score-reveal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.score-reveal-result {
+  margin: 0;
+  font-weight: 700;
+  font-size: 1.0625rem;
+}
+
+.score-reveal--correct .score-reveal-result { color: var(--color-success); }
+
+.score-reveal-points {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.score-reveal--correct .score-reveal-points  { color: var(--color-success); }
+.score-reveal--incorrect .score-reveal-points { color: var(--color-text-muted); }
+
+.score-reveal-detail {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin: 0.5rem 0 0;
+}
+
+.score-reveal-detail div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.score-reveal-detail dt {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.score-reveal-detail dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+/* ── Key input (organizer / participant) ──────────────────────────────────── */
+
+.key-input {
+  margin: 0.5rem 0;
+}
+
+.key-input-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: transparent !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: 0.375rem !important;
+  color: var(--color-text-muted) !important;
+  font-size: 0.875rem;
+  padding: 0.375rem 0.625rem !important;
+  cursor: pointer;
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.key-input-toggle:hover:not(:disabled) {
+  color: var(--color-text) !important;
+  border-color: var(--color-text-muted) !important;
+  background: transparent !important;
+}
+
+.key-input-toggle span {
+  flex: 1;
+  text-align: left;
+}
+
+.key-input-body {
+  border: 1px solid var(--color-border);
+  border-top: none;
+  border-radius: 0 0 0.375rem 0.375rem;
+  padding: 0.75rem;
+  background: var(--color-surface);
+}
+
+.key-input-body .deploy-field {
+  margin-top: 0;
+}
+
+/* ── Skeleton loader ──────────────────────────────────────────────────────── */
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface) 25%,
+    var(--color-surface-alt) 50%,
+    var(--color-surface) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 0.375rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; background: var(--color-surface); }
+}
+
+.match-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.skeleton--title    { height: 2rem;   width: 60%; }
+.skeleton--timeline { height: 2.5rem; width: 100%; }
+.skeleton--card     { height: 6rem;   width: 100%; border-radius: 0.5rem; }
+
+/* ── Mobile / responsive ──────────────────────────────────────────────────── */
+
+@media (max-width: 480px) {
+  .match-state-timeline {
+    gap: 0.25rem;
+  }
+
+  .match-state-timeline-node {
+    font-size: 0.75rem;
+    padding: 0.375rem 0.25rem;
+  }
+
+  .prediction-selector-options {
+    gap: 0.375rem;
+  }
+
+  .prediction-option-label {
+    min-width: 0;
+  }
+
+  .prediction-option {
+    padding: 0.75rem 0.25rem;
+    font-size: 0.9375rem;
+  }
+
+  .match-info-card {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .privacy-panel-columns {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .score-reveal {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .dialog {
+    padding: 1.25rem;
+  }
+
+  .dialog-actions {
+    flex-direction: column-reverse;
+  }
+
+  .dialog-actions button {
+    width: 100%;
+  }
 }

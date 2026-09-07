@@ -28,7 +28,10 @@ export function WalletConnect({
     <div className="wallet-connect">
       {connected && address ? (
         <>
-          <span className="wallet-connect-address">
+          <span
+            className="wallet-connect-address"
+            aria-label={`Connected wallet: ${address}`}
+          >
             <Wallet aria-hidden="true" size={16} />
             {truncateHex(address)}
           </span>

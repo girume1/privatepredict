@@ -27,7 +27,9 @@ export function HowItWorks() {
   return (
     <div className="how-it-works">
       <h2>How it works</h2>
-      <ol>
+      {/* role="list" restores list semantics in Safari + VoiceOver when
+          list-style is removed via CSS (known Safari/VoiceOver behaviour). */}
+      <ol role="list">
         {STEPS.map(({ icon: Icon, title, body }) => (
           <li key={title}>
             <Icon aria-hidden="true" size={18} />

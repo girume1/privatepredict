@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Outcome } from "../types.js";
 
 interface PredictionSelectorProps {
@@ -8,36 +8,50 @@ interface PredictionSelectorProps {
 
 const OPTIONS: Outcome[] = ["HOME", "DRAW", "AWAY"];
 
+/**
+ * Accessible radio group for picking a prediction outcome.
+ *
+ * Uses native <input type="radio"> elements styled as buttons rather than
+ * <button role="radio"> — native radios get arrow-key navigation, correct
+ * AT announcements, and checked-state management for free, with no custom
+ * keyboard wiring required. The <fieldset>/<legend> provides the group
+ * label. The selected value is tracked in React state so the Submit button
+ * can be disabled until a choice is made.
+ */
 export function PredictionSelector({
   onSubmit,
   disabled = false,
 }: PredictionSelectorProps) {
   const [selected, setSelected] = useState<Outcome | null>(null);
+  const groupName = useRef(
+    `prediction-${Math.random().toString(36).slice(2)}`,
+  );
 
   return (
     <fieldset className="prediction-selector" disabled={disabled}>
       <legend>Your prediction</legend>
-      <div className="prediction-selector-options" role="radiogroup">
+      <div className="prediction-selector-options">
         {OPTIONS.map((outcome) => (
-          <button
+          <label
             key={outcome}
-            type="button"
-            role="radio"
-            aria-checked={selected === outcome}
-            className={
-              selected === outcome
-                ? "prediction-option selected"
-                : "prediction-option"
-            }
-            onClick={() => setSelected(outcome)}
+            className={`prediction-option-label${selected === outcome ? " selected" : ""}`}
           >
-            {outcome}
-          </button>
+            <input
+              type="radio"
+              name={groupName.current}
+              value={outcome}
+              checked={selected === outcome}
+              onChange={() => setSelected(outcome)}
+              className="prediction-option-radio"
+              disabled={disabled}
+            />
+            <span className="prediction-option">{outcome}</span>
+          </label>
         ))}
       </div>
       <button
         type="button"
-        disabled={selected === null}
+        disabled={selected === null || disabled}
         onClick={() => selected && onSubmit(selected)}
       >
         Submit Prediction

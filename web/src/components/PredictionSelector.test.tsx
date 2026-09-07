@@ -30,14 +30,9 @@ describe("PredictionSelector", () => {
     render(<PredictionSelector onSubmit={vi.fn()} />);
     await user.click(screen.getByRole("radio", { name: "AWAY" }));
 
-    expect(screen.getByRole("radio", { name: "AWAY" })).toHaveAttribute(
-      "aria-checked",
-      "true",
-    );
-    expect(screen.getByRole("radio", { name: "HOME" })).toHaveAttribute(
-      "aria-checked",
-      "false",
-    );
+    // Native radio inputs use the checked property, not aria-checked.
+    expect(screen.getByRole("radio", { name: "AWAY" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "HOME" })).not.toBeChecked();
   });
 
   it("disables all controls when disabled", () => {

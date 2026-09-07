@@ -41,7 +41,7 @@ describe("MatchDetail", () => {
         onPublishResult={vi.fn()}
       />,
     );
-    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(screen.getByText(/connect a wallet to load this match/i)).toBeInTheDocument();
   });
 
   it("prompts to connect a wallet when OPEN + NO_COMMITMENT + disconnected", () => {
@@ -57,8 +57,8 @@ describe("MatchDetail", () => {
         onPublishResult={vi.fn()}
       />,
     );
-    expect(screen.getByText(/connect a wallet to submit/i)).toBeInTheDocument();
-    expect(screen.queryByRole("radiogroup")).not.toBeInTheDocument();
+    expect(screen.getByText(/connect your wallet to submit a prediction/i)).toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: "HOME" })).not.toBeInTheDocument();
   });
 
   it("renders the PredictionSelector when OPEN + NO_COMMITMENT + connected", () => {
@@ -74,7 +74,7 @@ describe("MatchDetail", () => {
         onPublishResult={vi.fn()}
       />,
     );
-    expect(screen.getByRole("radiogroup")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "HOME" })).toBeInTheDocument();
   });
 
   it("hides the PredictionSelector and explains why once the deadline has passed", () => {
@@ -90,12 +90,12 @@ describe("MatchDetail", () => {
         onPublishResult={vi.fn()}
       />,
     );
-    expect(screen.queryByRole("radiogroup")).not.toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: "HOME" })).not.toBeInTheDocument();
     expect(
       screen.getByText(/submission deadline has passed/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/client-side convenience only/i),
+      screen.getByText(/contract itself does not enforce/i),
     ).toBeInTheDocument();
   });
 
@@ -243,7 +243,7 @@ describe("MatchDetail", () => {
         onPublishResult={vi.fn()}
       />,
     );
-    expect(screen.getByText(/points: 3/i)).toBeInTheDocument();
+    expect(screen.getByText(/\+3 points/i)).toBeInTheDocument();
   });
 
   it("shows the match info card with status, deadline, and commitment once committed", () => {
@@ -327,7 +327,7 @@ describe("MatchDetail", () => {
       screen.getByRole("heading", { name: /organizer controls/i }),
     ).toBeInTheDocument();
     // Participant controls remain visible too — organizer status doesn't hide them.
-    expect(screen.getByRole("radiogroup")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "HOME" })).toBeInTheDocument();
   });
 
   it("does not show organizer controls when isOrganizer is false", () => {
@@ -368,13 +368,13 @@ describe("MatchDetail", () => {
       />,
     );
     expect(
-      screen.getByText(/single prediction slot is already held by another/i),
+      screen.getByText(/prediction slot is held by another participant/i),
     ).toBeInTheDocument();
     expect(
-      screen.queryByText(/your prediction has been submitted/i),
+      screen.queryByText(/your prediction.*committed/i),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("Your commitment")).not.toBeInTheDocument();
-    expect(screen.queryByRole("radiogroup")).not.toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: "HOME" })).not.toBeInTheDocument();
   });
 
   it("does not offer reveal when the on-chain owner differs from this browser", () => {
@@ -432,7 +432,7 @@ describe("MatchDetail", () => {
       screen.queryByRole("button", { name: "Reveal Prediction" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByText(/reveal data .* not available in this browser/i),
+      screen.getByText(/reveal data not found in this browser/i),
     ).toBeInTheDocument();
   });
 
@@ -460,7 +460,7 @@ describe("MatchDetail", () => {
       />,
     );
     expect(
-      screen.getByText(/reconnect your wallet to reveal your prediction/i),
+      screen.getByText(/reconnect your wallet to reveal/i),
     ).toBeInTheDocument();
   });
 
@@ -490,7 +490,7 @@ describe("MatchDetail", () => {
     );
     expect(screen.queryByText(/you predicted/i)).not.toBeInTheDocument();
     expect(
-      screen.getByText(/already been revealed by another participant/i),
+      screen.getByText(/match has been revealed/i),
     ).toBeInTheDocument();
   });
 

@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    name: Typecheck / Lint / Build / Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # --- Contract ---
+      - name: Contract — typecheck
+        run: npm run typecheck
+        working-directory: contract
+
+      - name: Contract — lint
+        run: npm run lint
+        working-directory: contract
+
+      - name: Contract — build
+        run: npm run build
+        working-directory: contract
+
+      - name: Contract — test
+        run: npm run test
+        working-directory: contract
+
+      # --- API ---
+      - name: API — typecheck
+        run: npm run typecheck
+        working-directory: api
+
+      - name: API — lint
+        run: npm run lint
+        working-directory: api
+
+      - name: API — build
+        run: npm run build
+        working-directory: api
+
+      - name: API — test
+        run: npm run test
+        working-directory: api
+
+      # --- Web ---
+      - name: Web — typecheck
+        run: npm run typecheck
+        working-directory: web
+
+      - name: Web — lint
+        run: npm run lint
+        working-directory: web
+
+      - name: Web — build
+        # prebuild runs sync-zk-config automatically (copies keys/zkir from
+        # contract/src/managed into web/public before vite build)
+        run: npm run build
+        working-directory: web
+
+      - name: Web — test
+        run: npm run test
+        working-directory: web

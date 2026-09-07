@@ -1,125 +1,183 @@
 # Compact Contract Specification
 
-## Wave 1 verified implementation note
+This document describes the verified Wave 1 implementation.
+See `contract/src/prediction-board.compact` for the canonical source.
 
-The circuits, per-call `matchId` parameters, and `createMatch`/`closePredictions`
-functions described below are the target multi-match design, not what is
-compiled today. The verified Wave 1 `contract/src/prediction-board.compact`
-implements one match per contract deployment (via `initialState`, not
-`createMatch`) with circuits `submitPrediction(commitment)`, `closeMatch()`,
-`publishResult(result)`, `revealPrediction(prediction, salt)`. Two facts below
-are corrected from this document's original claims, verified against the
-installed Compact 0.31.1 compiler:
-
-- **No on-chain deadline enforcement.** No time/block-clock primitive exists
-  in this Compact version (confirmed by compiling probes for `time()`,
-  `now()`, `blockTime()`, `secondsSinceEpoch()`, `currentTime()` — all
-  unbound identifiers). `deadline` is stored for display only; nothing in the
-  circuit rejects a late `submitPrediction`. This is a Wave 1 limitation, not
-  a guarantee, and it must not be presented as one in the UI.
-- **Commitment formula**: `commitment = persistentHash<Vector<2,Bytes<32>>>([prediction, salt])`,
-  computed by the exported `computeCommitment` circuit — not
-  `persistentCommit({ matchId, prediction }, salt)` as stated below.
-
-**Testnet verification status**: the full lifecycle below — including the
-organizer-authorization checks on `closeMatch`/`publishResult` and the
-ownership/commitment check on `revealPrediction` — has been run live on the
-Midnight Preview testnet for an *incorrect* prediction (0-point outcome).
-The scoring rule's 3-point *correct*-prediction branch is unit-tested but
-has not yet been run live. See `DEPLOYMENT.md`'s "Verification status".
+For Wave 2 plans (multi-match registry, `createMatch` circuit, per-participant
+collections, leaderboard), see `CHANGELOG.md`'s "Wave 2 — Planned" section.
 
 ## Contract name
 
 `PredictionBoard`
 
+## Deployment model
+
+One contract deployment represents exactly one match with one prediction slot.
+There is no `createMatch` circuit — a new match is created by deploying a new
+contract instance. See `DEPLOYMENT.md` for the full organizer workflow.
+
 ## Goal
 
-Enforce a privacy-preserving football prediction lifecycle:
+Enforce a privacy-preserving football prediction lifecycle on-chain:
 
 ```text
 OPEN → CLOSED → RESULT_PUBLISHED
 ```
 
-A prediction has its own lifecycle (matching the compiled
-`PredictionState` enum; points are awarded at reveal, so there is no
-separate scored state):
+A prediction has its own lifecycle (matching the compiled `PredictionState` enum):
 
 ```text
 NO_COMMITMENT → COMMITTED → REVEALED
 ```
 
+Points are awarded at reveal; there is no separate scored state.
+
 ## Ledger state
 
-The final Compact implementation will store:
+All fields are public on the Midnight ledger once set.
 
-- Match configuration and status
-- One prediction commitment per participant per match
-- Reveal status per commitment
-- Score-claim status per commitment
-- Accumulated mock points per participant
-- Organizer authorization data
+| Field | Type | Description |
+|---|---|---|
+| `matchId` | `Bytes<32>` | Unique match identifier, set at deployment |
+| `teamA` | `Opaque<"string">` | Home team name |
+| `teamB` | `Opaque<"string">` | Away team name |
+| `deadline` | `Field` | Submission deadline (display only — see note below) |
+| `matchState` | `MatchState` | Current match lifecycle state |
+| `matchResult` | `Maybe<Bytes<32>>` | Published result once available |
+| `organizer` | `Bytes<32>` | Organizer's derived public key |
+| `predictionState` | `PredictionState` | Current prediction lifecycle state |
+| `commitment` | `Bytes<32>` | Submitted prediction commitment |
+| `predictionOwner` | `Bytes<32>` | Derived participant ID of the committer |
+| `revealedPrediction` | `Maybe<Bytes<32>>` | Revealed prediction value once disclosed |
+| `points` | `Field` | Mock points awarded at reveal (3 correct, 0 incorrect) |
 
-## Exported circuit intent
+**Deadline note:** `deadline` is stored for display only. The installed
+Compact 0.31.1 toolchain has no time/clock primitive (confirmed by compiling
+probes for `time()`, `now()`, `blockTime()`, `secondsSinceEpoch()`,
+`currentTime()` — all unbound identifiers). Nothing in the contract rejects a
+late `submitPrediction` or early `closeMatch`. Client-side deadline gates are
+a UX convenience, not a security boundary.
+
+## Witnesses (private inputs)
+
+| Witness | Description |
+|---|---|
+| `localParticipantSecretKey()` | Returns the participant's local secret key — never put on-chain |
+| `localOrganizerSecretKey()` | Returns the organizer's local secret key — never put on-chain |
+
+## Pure circuits (exported, no state change)
+
+### `participantId(secretKey, matchIdParam) → Bytes<32>`
+
+Derives a participant identifier scoped to a specific match:
 
 ```text
-createMatch(matchId, deadline)
-submitPrediction(matchId, commitment)
-closePredictions(matchId)
-publishResult(matchId, result)
-revealPrediction(matchId, prediction, salt)
+persistentHash<Vector<3, Bytes<32>>>([pad(32, "pp:pid:"), matchIdParam, secretKey])
 ```
 
-## Circuit rules
+Uses `matchId` (already public) rather than the prediction salt, so identity
+derivation never touches the pre-reveal secret.
 
-### createMatch
+### `computeCommitment(prediction, salt) → Bytes<32>`
 
-- Only the authorized organizer can call it.
-- A match ID cannot be reused.
-- The deadline must be valid.
+Computes the prediction commitment:
 
-### submitPrediction
+```text
+persistentHash<Vector<2, Bytes<32>>>([prediction, salt])
+```
 
-- The match must exist.
-- The match status must be OPEN.
-- The current time must be before the deadline.
-- The participant must not already have a commitment for this match.
-- The stored value is a commitment, never the readable prediction.
+Only the commitment is stored on-chain. The salt is never a circuit parameter
+before reveal.
 
-### closePredictions
+### `organizerPublicKey(secretKey) → Bytes<32>`
 
-- Only the organizer can close a match.
-- The match must be OPEN.
-- The close action must occur at or after the deadline, or follow a clearly documented organizer policy.
+Derives the organizer's public key from their secret key:
 
-### publishResult
+```text
+persistentHash<Vector<2, Bytes<32>>>([pad(32, "pp:organizer:"), secretKey])
+```
 
-- Only the organizer can publish a result.
-- The match must be CLOSED.
-- The result must be HOME, DRAW, or AWAY.
-- A published result cannot be changed.
+## Constructor
 
-### revealPrediction
+```text
+constructor(matchIdParam, teamAParam, teamBParam, deadlineParam, organizerSecretKey)
+```
 
-- The match must have a published result.
-- A commitment must exist for the participant and match.
-- The prediction must be HOME, DRAW, or AWAY.
-- The circuit recomputes `persistentCommit({ matchId, prediction }, salt)`.
-- The recomputed commitment must equal the stored commitment.
-- The commitment cannot be revealed twice.
-- The circuit awards mock points according to the scoring rule.
+Initializes all ledger fields. Derives and stores `organizer` from
+`organizerSecretKey` — the secret key itself is never stored on-chain.
+Sets `matchState = OPEN`, `predictionState = NO_COMMITMENT`, and both
+`matchResult`/`revealedPrediction` to `none`.
+
+## Impure circuits (state-changing transactions)
+
+### `submitPrediction(newCommitment)`
+
+**Preconditions:**
+- `matchState == OPEN`
+- `predictionState == NO_COMMITMENT`
+
+**Effect:** Derives `predictionOwner` from the witness `localParticipantSecretKey()`
+and `matchId`, stores `newCommitment`, sets `predictionState = COMMITTED`.
+
+The salt is **not** a parameter — it never appears in the circuit call or the
+public ledger before reveal. Only the commitment is submitted.
+
+### `closeMatch()`
+
+**Preconditions:**
+- `matchState == OPEN`
+- `organizer == organizerPublicKey(localOrganizerSecretKey())` — organizer-only
+
+**Effect:** Sets `matchState = CLOSED`.
+
+### `publishResult(result)`
+
+**Preconditions:**
+- `matchState == CLOSED`
+- `organizer == organizerPublicKey(localOrganizerSecretKey())` — organizer-only
+
+**Effect:** Sets `matchResult = some(result)`, sets `matchState = RESULT_PUBLISHED`.
+
+**Wave 1 limitation:** `result` is accepted as any `Bytes<32>` value. The
+contract does not restrict it to the canonical `HOME`/`DRAW`/`AWAY` encoding
+defined in `api/src/outcome.ts`. The API and UI enforce the encoding, but a
+caller bypassing the UI could publish a non-canonical value — this is a Wave 2
+TODO in the contract source.
+
+### `revealPrediction(prediction, salt)`
+
+**Preconditions:**
+- `matchState == RESULT_PUBLISHED`
+- `predictionState == COMMITTED`
+- `predictionOwner == participantId(localParticipantSecretKey(), matchId)` — original committer only
+- `computeCommitment(prediction, salt) == commitment` — must match stored commitment
+
+**Effect:** Sets `revealedPrediction = some(prediction)`, awards
+`points = 3` if `prediction == matchResult.value` else `0`,
+sets `predictionState = REVEALED`.
 
 ## Scoring rule
 
 ```text
-Correct prediction: 3 points
+Correct prediction (prediction == matchResult.value): 3 points
 Incorrect prediction: 0 points
 ```
 
+## Testnet verification status
+
+| Scenario | Status |
+|---|---|
+| Deploy → commit `HOME` → close → publish `DRAW` → reveal → **0 points** | **Verified live** on Midnight Preview testnet |
+| Deploy → commit → close → publish same outcome → reveal → **3 points** | **Unit-tested only** — not yet run live |
+
+See `DEPLOYMENT.md`'s "Verification status" for full details.
+
 ## Non-goals for Wave 1
 
-- Real-money betting
-- Token transfers or payouts
+- Real-money betting, token transfers, or payouts
 - External sports-result oracles
-- Full anonymity claims
-- Complex multi-match leagues
+- On-chain deadline enforcement (no clock primitive in Compact 0.31.1)
+- Result encoding enforcement in the contract (API/UI layer only)
+- Multi-match support or leaderboard aggregation
+- Full anonymity (wallet addresses and transaction timing remain observable)
 - Private group membership

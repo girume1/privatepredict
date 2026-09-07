@@ -1,21 +1,28 @@
 import { useState } from "react";
-import { LockKeyhole, ChevronDown, ChevronUp } from "lucide-react";
+import { User, ChevronDown, ChevronUp } from "lucide-react";
 import { hexToBytes } from "../hex.js";
 
-interface OrganizerKeyInputProps {
+interface ParticipantKeyInputProps {
   onImport: (secretKey: Uint8Array | null) => void;
   disabled?: boolean;
 }
 
 /**
- * Lets the organizer paste back the secret key they saved when deploying
- * this match (see DeployApp.tsx). Collapsed by default — most visitors are
- * participants, not the organizer.
+ * Lets a returning participant paste back the secret key that was generated
+ * for them on their first connection to this match (stored in localStorage
+ * per contract address — see persistentPrivateStateProvider.ts). Collapsed
+ * by default since most first-time visitors don't need it.
+ *
+ * Use case: a participant who has already submitted a commitment wants to
+ * reveal from a different browser or a cleared-storage context and has
+ * manually backed up their participant key. Without pre-seeding this key,
+ * connectAndJoin would generate a fresh unrelated identity and the reveal
+ * ownership check would fail.
  */
-export function OrganizerKeyInput({
+export function ParticipantKeyInput({
   onImport,
   disabled = false,
-}: OrganizerKeyInputProps) {
+}: ParticipantKeyInputProps) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -44,12 +51,12 @@ export function OrganizerKeyInput({
         type="button"
         className="key-input-toggle"
         aria-expanded={open}
-        aria-controls="organizer-key-panel"
+        aria-controls="participant-key-panel"
         onClick={() => setOpen((o) => !o)}
         disabled={disabled}
       >
-        <LockKeyhole aria-hidden="true" size={15} />
-        <span>I&apos;m the organizer</span>
+        <User aria-hidden="true" size={15} />
+        <span>I&apos;m a returning participant</span>
         {open ? (
           <ChevronUp aria-hidden="true" size={15} />
         ) : (
@@ -57,21 +64,25 @@ export function OrganizerKeyInput({
         )}
       </button>
       {open && (
-        <div id="organizer-key-panel" className="key-input-body">
+        <div id="participant-key-panel" className="key-input-body">
           <div className="deploy-field">
-            <label htmlFor="organizer-key">Organizer secret key</label>
+            <label htmlFor="participant-key">Participant secret key</label>
             <input
-              id="organizer-key"
+              id="participant-key"
               value={value}
               onChange={(e) => handleChange(e.target.value)}
               disabled={disabled}
-              placeholder="Paste the key saved when you deployed this match"
+              placeholder="Paste your participant key to restore your identity"
               aria-invalid={error ? "true" : undefined}
-              aria-describedby={error ? "organizer-key-error" : undefined}
+              aria-describedby={error ? "participant-key-error" : undefined}
             />
           </div>
+          <p className="organizer-hint">
+            Only needed if your browser storage was cleared or you are
+            connecting from a different browser.
+          </p>
           {error && (
-            <p id="organizer-key-error" role="alert" className="deploy-error">
+            <p id="participant-key-error" role="alert" className="deploy-error">
               {error}
             </p>
           )}

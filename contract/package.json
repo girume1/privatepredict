@@ -23,7 +23,6 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.6",
     "@eslint/js": "^9.39.4",
     "@typescript-eslint/eslint-plugin": "^8.61.0",
     "eslint": "^9.39.4",
@@ -32,7 +31,7 @@
     "globals": "^17.11.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.61.0",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.11"
   },
   "dependencies": {
     "@midnight-ntwrk/compact-runtime": "0.16.0",

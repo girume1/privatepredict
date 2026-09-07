@@ -3,9 +3,11 @@ import { describe, it, expect } from "vitest";
 import { TransactionStatus } from "./TransactionStatus.js";
 
 describe("TransactionStatus", () => {
-  it("renders nothing when idle", () => {
+  it("renders nothing visible when idle", () => {
     const { container } = render(<TransactionStatus phase="idle" />);
-    expect(container).toBeEmptyDOMElement();
+    // The aria-live container is always in the DOM (so screen readers
+    // register it before content is inserted), but it should be empty.
+    expect(container.firstChild).toBeEmptyDOMElement();
   });
 
   it("shows the confirmed state with an abbreviated tx hash", () => {

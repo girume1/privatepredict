@@ -35,6 +35,7 @@ type WalletContextValue = {
   connect: (
     contractAddress: string,
     organizerSecretKey?: Uint8Array,
+    participantSecretKey?: Uint8Array,
   ) => Promise<void>;
   disconnect: () => void;
   submitPrediction: (outcome: Outcome) => Promise<ActionResult>;
@@ -83,7 +84,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const stateSubscriptionRef = useRef<Subscription | null>(null);
 
   const connect = useCallback(
-    async (contractAddress: string, organizerSecretKey?: Uint8Array) => {
+    async (contractAddress: string, organizerSecretKey?: Uint8Array, participantSecretKey?: Uint8Array) => {
       setConnecting(true);
       setError(null);
       try {
@@ -100,6 +101,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           networkId,
           contractAddress,
           organizerSecretKey,
+          participantSecretKey,
         );
         apiRef.current = connection.api;
         contractAddressRef.current = contractAddress;

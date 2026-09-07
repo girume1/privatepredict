@@ -34,18 +34,29 @@ PrivatePredict provides **prediction confidentiality and verifiable timing**. It
 PrivatePredict is a direct exercise of Midnight's public/private ledger model, not just a UI wrapped around an ordinary contract.
 
 ```text
-React + TypeScript frontend
-        |
-        | prepare prediction + random salt locally — never sent anywhere
-        v
-API layer (@privatepredict/api) — typed circuit calls, derived public/private state
-        |
-        | proof generated locally, via the connected Lace wallet + a local proof server
-        v
-Compact contract (PredictionBoard) on Midnight
-        |
-        v
-Public Midnight ledger
+┌─────────────────────────────────────────────┐
+│         React + TypeScript frontend          │
+│  (web/ — participant app + organizer tool)   │
+└───────────────────┬─────────────────────────┘
+                    │ prepare prediction + random salt locally
+                    │ salt never leaves the browser before reveal
+                    ▼
+┌─────────────────────────────────────────────┐
+│     API layer (@privatepredict/api)          │
+│  typed circuit calls, derived public/        │
+│  private state observable (RxJS state$)      │
+└───────────────────┬─────────────────────────┘
+                    │ proof generated locally via
+                    │ Lace wallet + local Docker proof server
+                    ▼
+┌─────────────────────────────────────────────┐
+│   Compact contract (PredictionBoard)         │
+│   on Midnight — enforces lifecycle,          │
+│   commitment storage, reveal verification    │
+└───────────────────┬─────────────────────────┘
+                    │
+                    ▼
+         Public Midnight ledger
 ```
 
 **Public ledger state** (the generated `Ledger` type) holds exactly what's meant to be shared: match identifier, team names, deadline, lifecycle status, the organizer's public key, the prediction commitment, and — once revealed — the outcome and score. See `docs/data-model.md` for the exact verified shape, transcribed from the compiled contract's own generated types, not guessed.
@@ -64,10 +75,10 @@ Three different levels of confidence apply to different parts of this project. D
 |---|---|
 | Contract lifecycle, organizer authorization, ownership checks, commitment verification | **Unit-tested** — `contract/test/prediction-board.test.ts`, 15/15 passing against the real compiled contract |
 | API primitives (commitment/outcome encoding, private-state handling) | **Unit-tested** — `api/test/*.test.ts`, 12/12 passing |
-| Frontend components and flows | **Unit-tested** — `web/src/**/*.test.{ts,tsx}`, 142/142 passing (components, flows, persistence, ownership gating) |
+| Frontend components and flows | **Unit-tested** — `web/src/**/*.test.{ts,tsx}`, 150/150 passing (components, flows, persistence, ownership gating, accessibility) |
 | Deploy → commit `HOME` → close → publish `DRAW` → reveal → **0 points** | **Verified live** on Midnight Preview testnet, via a real Lace wallet and a local Docker proof server. See `DEPLOYMENT.md`'s "Testnet lessons learned" for exactly what that run surfaced. |
-| Deploy → commit → close → publish the *same* outcome → reveal → **3 points** | **Not yet verified live.** The scoring rule is unit-tested, but the correct-prediction branch has not yet been exercised against real testnet infrastructure. Do not treat it as demo-proven until it has been. |
-| `localStorage`-persisted identity/pending prediction surviving a reconnect or reload | **Unit-tested, not yet re-verified live.** Fixes a real bug hit twice during live testnet demos (see `DEPLOYMENT.md`'s "Testnet lessons learned"). Until confirmed live, treat the two-tab organizer workaround as still the safer path. |
+| Deploy → commit → close → publish the *same* outcome → reveal → **3 points** | **Verified live** on Midnight Preview testnet. |
+| `localStorage`-persisted identity/pending prediction surviving a reconnect or reload | **Verified live** on Midnight Preview testnet. The two-tab organizer workaround is no longer needed. |
 | On-chain deadline enforcement | **Does not exist**, verified by inspection of the installed Compact 0.31.1 toolchain (no time/clock primitive compiles). `deadline` is stored for display only. Both the organizer's Close Match button and the participant's prediction selector apply a client-side deadline gate as a UX convenience — neither is a security boundary. |
 | Browsing/switching between several matches | **Available, off-chain only.** The frontend keeps a local list of independently-deployed match addresses (`web/src/matchRegistry.ts`) so a participant can switch between them — but each match is still its own separate contract deployment. |
 | A real multi-match contract (one deployment, many matches), leaderboard, prediction history across matches | **Deferred to Wave 2.** The compiled contract has no `createMatch` circuit and no collection of matches or participants — one contract deployment is exactly one match. Do not assume these exist. |
@@ -82,10 +93,10 @@ Three different levels of confidence apply to different parts of this project. D
    ```bash
    cd contract && npm test   # 15/15 — lifecycle, organizer auth, ownership, scoring
    cd ../api && npm test     # 12/12 — commitment/outcome/private-state primitives
-   cd ../web && npm test     # 142/142 — components, flows, persistence, ownership gating
+   cd ../web && npm test     # 150/150 — components, flows, persistence, ownership gating, accessibility
    ```
 3. **Read the contract directly** — `contract/src/prediction-board.compact` is short and readable. The privacy-relevant circuits are `submitPrediction` (commitment-only, no salt) and `revealPrediction` (commitment + ownership verification).
-4. **See it run against real Midnight testnet infrastructure**: a demo video is being prepared for the Wave 1 submission; in the meantime, `DEPLOYMENT.md` documents exactly what has been run live, with real screenshots-worthy detail on what broke and how it was fixed.
+4. **See it run against real Midnight testnet infrastructure**: see `DEPLOYMENT.md` for exactly what has been run live, with real detail on what broke and how it was fixed.
 5. **Read `DEPLOYMENT.md`'s "Testnet lessons learned"** for evidence this was actually exercised against live infrastructure, not just simulated.
 6. **Check the verification table above** for a precise, non-inflated account of what's unit-tested vs. verified live vs. still pending — nothing here is claimed as working without saying which category it falls into.
 
@@ -129,23 +140,23 @@ During reveal, the user provides the original prediction and salt. The Compact c
 
 ```text
 User selects prediction privately
-        |
-        v
+        │
+        ▼
 Frontend creates a unique random salt locally
-        |
-        v
-Frontend creates prediction commitment
-        |
-        v
+        │
+        ▼
+Frontend computes prediction commitment
+        │
+        ▼
 Compact contract stores commitment on Midnight
-        |
-        v
+        │
+        ▼
 Organizer closes the match and publishes the result
-        |
-        v
+        │
+        ▼
 User reveals prediction and salt
-        |
-        v
+        │
+        ▼
 Compact contract verifies commitment and awards mock points
 ```
 
@@ -170,12 +181,14 @@ NO_COMMITMENT → COMMITTED → REVEALED
 - [x] Prediction reveal, commitment verification, and mock-point scoring
 - [x] Contract simulation and test cases (15/15 passing)
 - [x] TypeScript integration layer (`api/`, 12/12 tests passing)
-- [x] React interface (`web/`, 142/142 tests passing)
+- [x] React interface (`web/`, 150/150 tests passing)
 - [x] Privacy Panel showing public versus private data at each lifecycle stage
 - [x] Ownership-scoped participant UI — personal copy and reveal actions appear only for the participant who owns the match's single commitment slot; any other viewer sees neutral copy, never another user's data framed as theirs
 - [x] An off-chain, local match list so a participant can browse and switch between several independently-deployed matches, with no contract change (`web/src/matchRegistry.ts`, `MatchList.tsx`)
 - [x] Production-bundle hardening — browser shims for Node `assert` and `isomorphic-ws` so codec assertions and indexer live updates keep working in built output (`web/src/shims/`)
-- [x] Live deploy/commit/close/publish/reveal run on Midnight Preview testnet (incorrect-prediction branch)
+- [x] Accessibility pass — WCAG AA contrast, keyboard navigation, ARIA landmarks, native radio inputs, live regions, screen reader announcements
+- [x] Participant key input — returning participants can restore their identity from a backed-up key without losing their pending prediction
+- [x] Live deploy/commit/close/publish/reveal run on Midnight Preview testnet (incorrect-prediction / 0-point branch)
 - [x] Live run of the correct-prediction (3-point) branch on testnet
 - [ ] Demo video and final submission materials
 
@@ -198,53 +211,106 @@ Add privacy-aware leagues, optional selective disclosure, improved accessibility
 - [Midnight Network](https://midnight.network/)
 - [Compact](https://docs.midnight.network/compact) smart contracts (compiler v0.31.1)
 - Zero-knowledge proofs, proved via a local Docker proof server and the connected Lace wallet
-- TypeScript (strict mode)
-- React + Vite
+- TypeScript (strict mode, ES2022)
+- React 19 + Vite 8 (Rolldown-based)
+- RxJS 7 for reactive derived state
 - npm workspaces (`contract`, `api`, `web`)
 - Lace wallet (Midnight-compatible)
+- Vitest for all three test suites
+- GitHub Actions CI
 
 ## Project structure
 
 ```text
 privatepredict/
-├── contract/                        # Midnight Compact smart contract (one match per deployment)
+├── .github/
+│   └── workflows/
+│       └── ci.yml                       # CI: typecheck, lint, build, test across all workspaces
+├── contract/                            # Midnight Compact smart contract (one match per deployment)
 │   ├── src/
-│   │   ├── prediction-board.compact       # Contract source: lifecycle, commitment, scoring
-│   │   ├── prediction-board-witnesses.ts  # TS mirror of circuit witnesses
-│   │   ├── index.ts                       # Exports the managed contract types/bindings
-│   │   └── managed/                       # Compiled artifacts: generated bindings, ZK keys/artifacts
-│   └── test/prediction-board.test.ts      # 15/15 tests against the compiled contract
-├── api/                             # TypeScript contract integration layer (npm workspace)
-│   ├── src/                         # PredictionBoardAPI (deploy/join/state$), outcome encoding,
-│   │                                #   commitment + crypto + private-state primitives, typed errors
-│   └── test/                        # 12/12 Vitest suites
-├── web/                             # React + Vite frontend (npm workspace)
-│   ├── index.html                   # Participant app entry
-│   ├── deploy.html                  # Organizer-only deployment tool entry
-│   ├── vite.config.ts               # Build config, incl. browser shim aliases + wasm dedupe
-│   ├── .env.example                 # VITE_NETWORK_ID / VITE_PREDICTION_BOARD_ADDRESS
+│   │   ├── prediction-board.compact     # Contract source: lifecycle, circuits, commitment, scoring
+│   │   ├── prediction-board-witnesses.ts# TypeScript mirror of private witness functions
+│   │   ├── index.ts                     # Exports compiled contract bindings
+│   │   └── managed/                     # Compiled artifacts: generated JS bindings, ZK keys, zkir
+│   └── test/
+│       ├── prediction-board.test.ts     # 15/15 tests against the real compiled contract
+│       ├── prediction-board-simulator.ts# Simulation harness
+│       └── utils.ts
+├── api/                                 # TypeScript integration layer (npm workspace)
 │   └── src/
-│       ├── App.tsx                  # Participant app shell (match list + wallet + MatchDetail)
-│       ├── DeployApp.tsx            # Organizer deployment UI
-│       ├── useTransactionFlow.ts    # Single-flight tx state machine (submitting→proving→pending→success/error)
-│       ├── matchRegistry.ts         # Off-chain local match list (localStorage)
-│       ├── pendingPrediction.ts     # Persisted {prediction, salt} per contract address
-│       ├── persistentPrivateStateProvider.ts  # localStorage-backed private state
-│       ├── inMemoryPrivateStateProvider.ts    # Reference provider wrapped by the above
-│       ├── types.ts · hex.ts · globals.ts
-│       ├── components/              # Dialog, MatchList, WalletConnect, PredictionSelector,
-│       │                            #   Commit/Reveal dialogs, TransactionStatus, PrivacyPanel,
-│       │                            #   OrganizerControls/KeyInput, timeline, Brand, EmptyState, HowItWorks
-│       ├── screens/MatchDetail.tsx  # The match screen (participant + organizer views)
-│       ├── wallet/                  # Lace wallet connection + WalletContext
-│       ├── shims/                   # Browser shims: Node assert, isomorphic-ws WebSocket
-│       └── *.test.{ts,tsx}          # 142/142 Vitest suites (see docs/test-plan.md)
-├── docs/                            # architecture, data-model, privacy-model, contract-spec,
-│                                    #   api-spec, frontend-spec, test-plan
-├── DEPLOYMENT.md                    # Organizer + participant testnet workflow, verification status
-├── CHANGELOG.md                     # Wave-by-wave progress history
-├── SECURITY.md                      # Security and privacy policy
-├── LICENSE                          # Apache License 2.0
+│       ├── index.ts                     # PredictionBoardAPI: deploy/join, state$ observable, circuit calls
+│       ├── common-types.ts              # PredictionBoardProviders, contract types
+│       ├── commitment.ts                # computeCommitment — delegates to pureCircuits
+│       ├── crypto.ts                    # generateSecretKey(), generateSalt()
+│       ├── outcome.ts                   # HOME/DRAW/AWAY ↔ Bytes<32> encoding
+│       ├── privateState.ts              # PrivatePredictPrivateState shape + factory
+│       └── errors.ts                    # PrivatePredictError with typed error codes
+├── web/                                 # React + Vite frontend (npm workspace)
+│   ├── index.html                       # Participant app entry point
+│   ├── deploy.html                      # Organizer-only deployment tool entry point
+│   ├── vite.config.ts                   # Build config: WASM handling, browser shims, Rolldown dedupe
+│   ├── .env.example                     # VITE_NETWORK_ID / VITE_PREDICTION_BOARD_ADDRESS
+│   └── src/
+│       ├── main.tsx                     # Participant app bootstrap
+│       ├── deploy-main.tsx              # Organizer deploy tool bootstrap
+│       ├── App.tsx                      # Participant app shell (match list + wallet + MatchDetail)
+│       ├── DeployApp.tsx                # Organizer deployment UI
+│       ├── useTransactionFlow.ts        # Single-flight TX state machine (submitting→proving→pending→confirmed/failed)
+│       ├── matchRegistry.ts             # Off-chain local match list (localStorage)
+│       ├── pendingPrediction.ts         # Persisted {prediction, salt} per contract address
+│       ├── persistentPrivateStateProvider.ts  # localStorage-backed private state (scoped per address)
+│       ├── inMemoryPrivateStateProvider.ts    # Reference in-memory provider (base layer)
+│       ├── types.ts                     # Shared TypeScript types
+│       ├── hex.ts                       # Hex encode/decode utilities
+│       ├── globals.ts                   # process.env + Buffer polyfills for SDK compatibility
+│       ├── vite-env.d.ts                # Vite environment type declarations
+│       ├── index.css                    # Global styles
+│       ├── wallet/
+│       │   ├── WalletContext.tsx        # React context: all wallet state + circuit action handlers
+│       │   └── connect.ts              # Lace wallet detection, provider wiring, connectAndJoin/Deploy
+│       ├── screens/
+│       │   ├── MatchDetail.tsx          # Main match screen (participant + organizer views, ownership-gated)
+│       │   └── MatchDetail.test.tsx
+│       ├── components/
+│       │   ├── Brand.tsx                # Logo / brand mark
+│       │   ├── Dialog.tsx               # Accessible modal dialog base
+│       │   ├── EmptyState.tsx           # Empty / no-match placeholder
+│       │   ├── HowItWorks.tsx           # Explainer section
+│       │   ├── MatchList.tsx            # Off-chain match list with address input
+│       │   ├── MatchSkeleton.tsx        # Loading skeleton while ledger data arrives
+│       │   ├── MatchStateTimeline.tsx   # Visual match lifecycle timeline
+│       │   ├── CommitPredictionDialog.tsx   # Commit flow modal
+│       │   ├── RevealPredictionDialog.tsx   # Reveal flow modal
+│       │   ├── PredictionSelector.tsx   # HOME / DRAW / AWAY picker (native radio inputs)
+│       │   ├── OrganizerControls.tsx    # Close match + publish result controls
+│       │   ├── OrganizerKeyInput.tsx    # Organizer secret key paste input
+│       │   ├── ParticipantKeyInput.tsx  # Returning participant key restore input
+│       │   ├── PrivacyPanel.tsx         # Per-stage public vs. private data breakdown
+│       │   ├── ScoreReveal.tsx          # Score reveal card (correct / incorrect)
+│       │   ├── StatusCard.tsx           # Lifecycle state message cards with icons
+│       │   ├── TransactionStatus.tsx    # TX progress indicator
+│       │   ├── WalletConnect.tsx        # Wallet connect / disconnect button
+│       │   └── *.test.tsx               # Co-located component tests (all components above have tests)
+│       ├── shims/
+│       │   ├── assert.ts               # Browser shim: full Node assert API (required by @subsquid/scale-codec)
+│       │   └── isomorphic-ws.ts        # Browser shim: named WebSocket export (required by indexer provider)
+│       └── test/
+│           └── setup.ts                # Vitest global test setup (@testing-library/jest-dom)
+├── docs/
+│   ├── architecture.md                 # Component diagram, dual-ledger public/private split
+│   ├── data-model.md                   # Exact Ledger and private-state shapes from generated types
+│   ├── privacy-model.md                # What's public vs. private, commitment scheme, limitations
+│   ├── contract-spec.md                # Circuit-by-circuit contract behavior (verified Wave 1 implementation)
+│   ├── api-spec.md                     # PredictionBoardAPI surface and local-state safety rules
+│   ├── frontend-spec.md                # Screens, components, Privacy Panel per-stage content
+│   └── test-plan.md                    # What each test suite covers, verified live vs. unit-tested
+├── vercel.json                         # Vercel deployment configuration
+├── package.json                        # Workspace root (orchestrates contract, api, web)
+├── package-lock.json
+├── DEPLOYMENT.md                       # Full organizer + participant testnet workflow
+├── CHANGELOG.md                        # Wave-by-wave progress history
+├── SECURITY.md                         # Security and privacy policy
+├── LICENSE                             # Apache License 2.0
 └── README.md
 ```
 
@@ -255,7 +321,7 @@ privatepredict/
 | [DEPLOYMENT.md](./DEPLOYMENT.md) | Full organizer + participant testnet workflow, exact verification status, real testnet lessons learned |
 | [docs/architecture.md](./docs/architecture.md) | Component diagram and the dual-ledger public/private split in more detail |
 | [docs/privacy-model.md](./docs/privacy-model.md) | What's public vs. private, the commitment scheme, and privacy limitations |
-| [docs/contract-spec.md](./docs/contract-spec.md) | Circuit-by-circuit contract behavior, corrected against the real compiled contract |
+| [docs/contract-spec.md](./docs/contract-spec.md) | Circuit-by-circuit contract behavior, verified against the real compiled contract |
 | [docs/data-model.md](./docs/data-model.md) | The exact `Ledger` and private-state shapes, transcribed from generated types |
 | [docs/api-spec.md](./docs/api-spec.md) | The `PredictionBoardAPI` surface and local-state safety rules |
 | [docs/frontend-spec.md](./docs/frontend-spec.md) | Screens, components, and the Privacy Panel's per-stage content |
@@ -270,7 +336,7 @@ privatepredict/
 - Ubuntu, Linux, macOS, or Windows via WSL 2
 - Git
 - Node.js 22 or newer, with npm
-- Docker Desktop with Docker Compose
+- Docker Desktop
 - Midnight Compact developer tools (`compact` CLI, v0.31.1 verified)
 - A Midnight-compatible Lace wallet, funded via the official Preview testnet faucet, for wallet-connected testing
 
@@ -281,13 +347,11 @@ git --version
 node --version
 npm --version
 docker --version
-docker compose version
 compact --version
-compact check
 ```
 
 > **Toolchain pinning note:** the tracked compiled artifacts in
-> `contract/src/managed/` were produced by compact compiler **0.31.1**
+> `contract/src/managed/` were produced by Compact compiler **0.31.1**
 > (language version 0.23.0 — see
 > `contract/src/managed/prediction-board/compiler/contract-info.json`). A
 > newer CLI installed locally will still build the project, but recompiling
@@ -301,23 +365,33 @@ compact check
 npm install
 ```
 
-### Compile the contract and run tests
+### Compile the contract and run all tests
 
 ```bash
+# Contract
 cd contract
-npm run compact    # compiles prediction-board.compact via the real compact CLI
+npm run compact    # compiles prediction-board.compact via the Compact CLI
 npm test           # 15/15 contract simulation tests
+npm run typecheck
+npm run lint
+
+# API
+cd ../api
+npm test           # 12/12
+npm run typecheck
+npm run lint
+
+# Web
+cd ../web
+npm test           # 150/150
 npm run typecheck
 npm run lint
 ```
 
-### Run the API and web tests
+Or run the full CI pipeline locally from the contract workspace:
 
 ```bash
-cd api && npm test         # 12/12
-cd ../web && npm test       # 142/142
-cd ../web && npm run typecheck
-cd ../web && npm run lint
+cd contract && npm run ci   # compact → typecheck → lint → build → test
 ```
 
 ### Run the local proof server
@@ -329,6 +403,8 @@ docker run -d -p 6300:6300 \
   midnightntwrk/proof-server:8.1.0 \
   midnight-proof-server -v
 ```
+
+> Confirm the exact image tag against the [current Midnight docs](https://docs.midnight.network/) before use — tags may change across SDK releases.
 
 Verify it's running:
 

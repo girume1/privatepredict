@@ -2,6 +2,7 @@ import { useState } from "react";
 import { WalletProvider, useWallet } from "./wallet/WalletContext.js";
 import { WalletConnect } from "./components/WalletConnect.js";
 import { OrganizerKeyInput } from "./components/OrganizerKeyInput.js";
+import { ParticipantKeyInput } from "./components/ParticipantKeyInput.js";
 import { MatchList } from "./components/MatchList.js";
 import { Brand } from "./components/Brand.js";
 import { MatchDetail } from "./screens/MatchDetail.js";
@@ -28,6 +29,8 @@ function AppContent() {
   const { derivedState } = wallet;
   const [organizerSecretKey, setOrganizerSecretKey] =
     useState<Uint8Array | null>(null);
+  const [participantSecretKey, setParticipantSecretKey] =
+    useState<Uint8Array | null>(null);
   const [matches, setMatches] = useState<SavedMatch[]>(() =>
     loadSavedMatches(
       import.meta.env.VITE_PREDICTION_BOARD_ADDRESS || undefined,
@@ -39,21 +42,23 @@ function AppContent() {
     if (wallet.connected) {
       wallet.disconnect();
     }
-    // The imported organizer secret key belongs to the previous match's
-    // deployment. Without clearing it here it would silently be merged into
-    // the next match's persisted private state on connect (see connect.ts).
+    // The imported keys belong to the previous match's deployment. Without
+    // clearing them here they would silently be merged into the next match's
+    // persisted private state on connect (see connect.ts).
     setOrganizerSecretKey(null);
+    setParticipantSecretKey(null);
     setSelectedAddress(null);
   }
 
   function handleDisconnect() {
     wallet.disconnect();
     setOrganizerSecretKey(null);
+    setParticipantSecretKey(null);
   }
 
   if (!selectedAddress) {
     return (
-      <main>
+      <main aria-label="Match list">
         <Brand tagline />
         <MatchList
           matches={matches}
@@ -91,28 +96,38 @@ function AppContent() {
     : null;
 
   return (
-    <main>
-      <div className="app-toolbar">
+    <main aria-label="Match detail">
+      <header className="app-toolbar">
         <Brand />
         <button type="button" onClick={handleSwitchMatch}>
           Switch match
         </button>
-      </div>
+      </header>
       <WalletConnect
         connected={wallet.connected}
         address={wallet.walletAddress}
         connecting={wallet.connecting}
         error={wallet.error}
         onConnect={() =>
-          wallet.connect(selectedAddress, organizerSecretKey ?? undefined)
+          wallet.connect(
+            selectedAddress,
+            organizerSecretKey ?? undefined,
+            participantSecretKey ?? undefined,
+          )
         }
         onDisconnect={handleDisconnect}
       />
       {!wallet.connected && (
-        <OrganizerKeyInput
-          onImport={setOrganizerSecretKey}
-          disabled={wallet.connecting}
-        />
+        <section aria-label="Wallet and identity">
+          <OrganizerKeyInput
+            onImport={setOrganizerSecretKey}
+            disabled={wallet.connecting}
+          />
+          <ParticipantKeyInput
+            onImport={setParticipantSecretKey}
+            disabled={wallet.connecting}
+          />
+        </section>
       )}
       <MatchDetail
         match={match}

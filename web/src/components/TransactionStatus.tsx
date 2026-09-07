@@ -26,38 +26,54 @@ function truncate(hash: string): string {
  * Purely presentational: it maps the caller-owned TxPhase to copy/icons.
  * It owns no timers and can never decide success or failure — the parent's
  * useTransactionFlow drives those from the real transaction promise.
+ *
+ * Accessibility notes:
+ * - The aria-live container is ALWAYS rendered (never conditionally unmounted)
+ *   so that screen readers register it before any content is inserted. A
+ *   live region that mounts at the same time as its content is inserted will
+ *   not be announced by most AT.
+ * - aria-atomic="true" ensures the whole message is read as a unit.
+ * - aria-live="assertive" on errors so failures interrupt and are announced
+ *   immediately rather than waiting for the polite queue.
+ * - aria-busy signals to AT that the region is actively loading.
  */
 export function TransactionStatus({
   phase,
   txHash,
   errorMessage,
 }: TransactionStatusProps) {
-  if (phase === "idle") {
-    return null;
-  }
-
   const isPending = isBusyPhase(phase);
 
   return (
-    <div className="transaction-status" aria-live="polite">
-      {isPending && (
-        <p className="transaction-status-row">
-          <LoaderCircle aria-hidden="true" size={18} className="spin" />
-          {BUSY_COPY[phase]}
-        </p>
-      )}
-      {phase === "success" && (
-        <p className="transaction-status-row">
-          <CircleCheck aria-hidden="true" size={18} />
-          Confirmed
-          {txHash && <span> — {truncate(txHash)}</span>}
-        </p>
-      )}
-      {phase === "error" && (
-        <p className="transaction-status-row">
-          <CircleAlert aria-hidden="true" size={18} />
-          {errorMessage ?? DEFAULT_ERROR}
-        </p>
+    <div
+      className="transaction-status"
+      aria-live={phase === "error" ? "assertive" : "polite"}
+      aria-atomic="true"
+      aria-busy={isPending}
+      aria-relevant="additions text"
+    >
+      {phase !== "idle" && (
+        <>
+          {isPending && (
+            <p className="transaction-status-row">
+              <LoaderCircle aria-hidden="true" size={18} className="spin" />
+              {BUSY_COPY[phase]}
+            </p>
+          )}
+          {phase === "success" && (
+            <p className="transaction-status-row">
+              <CircleCheck aria-hidden="true" size={18} />
+              Confirmed
+              {txHash && <span> — {truncate(txHash)}</span>}
+            </p>
+          )}
+          {phase === "error" && (
+            <p className="transaction-status-row">
+              <CircleAlert aria-hidden="true" size={18} />
+              {errorMessage ?? DEFAULT_ERROR}
+            </p>
+          )}
+        </>
       )}
     </div>
   );

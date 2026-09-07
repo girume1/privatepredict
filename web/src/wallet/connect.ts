@@ -214,22 +214,31 @@ export type WalletConnection = {
  * fresh random key is generated as usual, which is correct for a plain
  * participant but would never satisfy the contract's organizer check.
  *
- * Merges rather than overwrites: the private-state provider is now
- * persisted per contract address (see persistentPrivateStateProvider.ts),
- * so a browser that already holds a real participant identity for this
- * address (from an earlier submission) must keep it — only the organizer
- * key is set fresh. Only a genuinely first-ever connection for this address
- * gets a freshly generated participant key.
+ * `participantSecretKey`, when given, is a key the participant saved
+ * externally (e.g. from a previous session on a different browser or after
+ * clearing site data). It is pre-seeded into the private-state provider
+ * before `.join()` so the returning participant's identity is restored
+ * rather than replaced with a fresh random key. Without it, a first-time
+ * connection generates a fresh key automatically — so this is only needed
+ * when the participant's localStorage has been lost.
+ *
+ * Merges rather than overwrites: the private-state provider is persisted
+ * per contract address (see persistentPrivateStateProvider.ts). When both
+ * keys are supplied (organizer who is also a participant), both are merged
+ * into a single private state. When only one is supplied, the other is
+ * preserved from the existing persisted state (or freshly generated if
+ * this is the very first connection for this address).
  */
 export async function connectAndJoin(
   networkId: string,
   contractAddress: ContractAddress,
   organizerSecretKey?: Uint8Array,
+  participantSecretKey?: Uint8Array,
 ): Promise<WalletConnection> {
   const connectedAPI = await connectToWallet(networkId);
   const providers = await createProviders(connectedAPI);
 
-  if (organizerSecretKey) {
+  if (organizerSecretKey ?? participantSecretKey) {
     providers.privateStateProvider.setContractAddress(contractAddress);
     const existing = await providers.privateStateProvider.get(
       predictionBoardPrivateStateKey,
@@ -237,8 +246,14 @@ export async function connectAndJoin(
     await providers.privateStateProvider.set(
       predictionBoardPrivateStateKey,
       createPrivatePredictPrivateState(
-        existing?.participantSecretKey ?? generateSecretKey(),
-        organizerSecretKey,
+        // Explicit participant key wins over persisted, persisted wins over fresh.
+        participantSecretKey ??
+          existing?.participantSecretKey ??
+          generateSecretKey(),
+        // Explicit organizer key wins over persisted, persisted wins over fresh.
+        organizerSecretKey ??
+          existing?.organizerSecretKey ??
+          generateSecretKey(),
       ),
     );
   }
