@@ -6,6 +6,22 @@ This project follows a three-Wave Buildathon development process. Each Wave subm
 
 ## [Unreleased]
 
+### Changed
+
+- Ownership-scoped participant UI: personal copy ("Your commitment", "Your prediction has been submitted…", the reveal summary) and the Reveal Prediction action are now gated on the connected identity actually owning the match's single on-chain commitment slot (`isPredictionOwner`) and on locally-held reveal data (`hasLocalPrediction`). A viewer who does not own the slot sees neutral copy and no reveal action — never another participant's commitment or revealed prediction framed as their own. The Privacy Panel likewise distinguishes owner vs. observer content.
+- A disconnected slot owner now sees a "reconnect your wallet to reveal" prompt once the result is published, instead of no guidance at all.
+- The match list now validates added addresses as full 64-hex-character contract addresses instead of accepting any even-length hex string.
+- The pasted organizer secret key is cleared from the UI on disconnect and on switching matches, so it can no longer be silently merged into a different match's persisted private state on the next connect.
+- `web/` unit suite extended from 111 to 142 tests (ownership gating, reveal-data gating, dialog backdrop/focus behavior, address-length validation, and the transaction-modal state machine described below).
+
+### Fixed
+
+- Transaction modals and organizer actions now follow one strict state machine (`useTransactionFlow`): `submitting → proving → pending → confirmed/failed`. Terminal `success`/`error` states come only from the real wallet/transaction promise. The 30-second wait is purely presentational — it escalates to "pending / still processing" and never marks a transaction as failed, and a result that lands after the wait still updates the UI. While unresolved the modal is not dismissible and Confirm/Cancel stay disabled, so a slow transaction can never be duplicated; a definitive failure re-enables the action as "Try Again"; a confirmed success shows "Confirmed" and then closes the modal automatically. This replaces the earlier timeout-flips-to-error behaviour, which could mislabel an in-flight transaction as failed.
+- Leaked `state$` subscriptions: each connect now unsubscribes the previous match's ledger subscription (and disconnect unsubscribes it), preventing stale emissions from a previous match overwriting the currently selected match's derived state, and stopping indexer handle leaks across reconnects.
+- Dialog focus handling: the open/close effect no longer re-runs (yanking focus to the element behind the modal) whenever a parent re-render passes a new `onDismiss` identity; backdrop clicks now dismiss when allowed, and clicks inside the dialog never do.
+- Commit-dialog copy corrected to match the `localStorage` persistence fix: reveal requires returning to the same browser and device (where the prediction/salt are stored), not "keeping the wallet connected".
+- Production browser bundle: added shims for Node's `assert` (called unconditionally by `@subsquid/scale-codec`) and `isomorphic-ws` (whose browser entry lacks the named `WebSocket` export the indexer provider reads), wired via `resolve.alias` in `web/vite.config.ts`. Without them, codec assertions throw and indexer live updates break in built output — `vite build` now completes with zero externalization warnings.
+
 ### Planned
 
 - Live-verify the correct-prediction (3-point) branch on Midnight Preview testnet — unit-tested, not yet run live.

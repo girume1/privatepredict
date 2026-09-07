@@ -40,10 +40,12 @@ Enforce a privacy-preserving football prediction lifecycle:
 OPEN → CLOSED → RESULT_PUBLISHED
 ```
 
-A prediction has its own lifecycle:
+A prediction has its own lifecycle (matching the compiled
+`PredictionState` enum; points are awarded at reveal, so there is no
+separate scored state):
 
 ```text
-NOT_SUBMITTED → COMMITTED → REVEALED → SCORED
+NO_COMMITMENT → COMMITTED → REVEALED
 ```
 
 ## Ledger state

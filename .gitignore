@@ -144,10 +144,11 @@ dist
 !.yarn/sdks
 !.yarn/versions
 
-# Kiro spec-driven-development artifacts — kept locally, not part of the public repo
-.kiro/
-
 # Vite files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# - idea/     personal planning notes and research transcripts
+idea/
+

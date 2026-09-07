@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { MatchState } from "@privatepredict/contract";
 import { TransactionStatus } from "./TransactionStatus.js";
+import { useTransactionFlow } from "../useTransactionFlow.js";
 import type { Match, Outcome, TxPhase } from "../types.js";
 
 type ActionResult = { ok: boolean; txHash?: string; error?: string };
@@ -22,17 +23,22 @@ const OUTCOMES: Outcome[] = ["HOME", "DRAW", "AWAY"];
  * the contract itself does not enforce deadlines (no verified on-chain
  * clock primitive in Compact 0.31.1). Said so explicitly in the UI rather
  * than implying it's a security guarantee.
+ *
+ * Each action runs through useTransactionFlow, so the same rules apply as
+ * in the participant dialogs: the action button disables immediately on
+ * click, a 30s wait only escalates to the "still processing" state (never
+ * a failure), and the terminal state comes from the real transaction
+ * promise. While a call is unresolved the button stays disabled; after a
+ * definitive failure it re-enables for a retry.
  */
 export function OrganizerControls({
   match,
   onCloseMatch,
   onPublishResult,
 }: OrganizerControlsProps) {
-  const [closePhase, setClosePhase] = useState<TxPhase>("idle");
-  const [closeError, setCloseError] = useState<string | undefined>();
+  const closeFlow = useTransactionFlow();
+  const publishFlow = useTransactionFlow();
   const [selectedResult, setSelectedResult] = useState<Outcome | "">("");
-  const [publishPhase, setPublishPhase] = useState<TxPhase>("idle");
-  const [publishError, setPublishError] = useState<string | undefined>();
 
   // Date.now() is impure — read it in an effect, not during render (React's
   // purity rules), and re-check on an interval so the button enables itself
@@ -45,40 +51,31 @@ export function OrganizerControls({
     return () => clearInterval(interval);
   }, [match.deadline]);
 
+  // An action is actionable only from rest (idle) or after a definitive
+  // failure (error). It stays disabled through submitting/proving/pending
+  // AND success, so a success that the ledger has not yet reflected cannot
+  // be accidentally re-submitted.
+  const isActionable = (phase: TxPhase) =>
+    phase === "idle" || phase === "error";
+
   const canClose =
     match.matchState === MatchState.OPEN &&
     deadlinePassed &&
-    closePhase !== "proving";
+    isActionable(closeFlow.phase);
   const canPublish =
     match.matchState === MatchState.CLOSED &&
     selectedResult !== "" &&
-    publishPhase !== "proving";
+    isActionable(publishFlow.phase);
 
-  async function handleClose() {
-    setClosePhase("proving");
-    setCloseError(undefined);
-    const result = await onCloseMatch();
-    if (result.ok) {
-      setClosePhase("success");
-    } else {
-      setClosePhase("error");
-      setCloseError(result.error ?? "The transaction failed.");
-    }
+  function handleClose() {
+    void closeFlow.start(onCloseMatch);
   }
 
-  async function handlePublish() {
+  function handlePublish() {
     if (!selectedResult) {
       return;
     }
-    setPublishPhase("proving");
-    setPublishError(undefined);
-    const result = await onPublishResult(selectedResult);
-    if (result.ok) {
-      setPublishPhase("success");
-    } else {
-      setPublishPhase("error");
-      setPublishError(result.error ?? "The transaction failed.");
-    }
+    void publishFlow.start(() => onPublishResult(selectedResult));
   }
 
   return (
@@ -97,7 +94,10 @@ export function OrganizerControls({
               deadline.
             </p>
           )}
-          <TransactionStatus phase={closePhase} errorMessage={closeError} />
+          <TransactionStatus
+            phase={closeFlow.phase}
+            errorMessage={closeFlow.error}
+          />
         </div>
       )}
 
@@ -108,7 +108,7 @@ export function OrganizerControls({
             id="organizer-result-select"
             value={selectedResult}
             onChange={(e) => setSelectedResult(e.target.value as Outcome | "")}
-            disabled={publishPhase === "proving"}
+            disabled={!isActionable(publishFlow.phase)}
           >
             <option value="">Select a result…</option>
             {OUTCOMES.map((outcome) => (
@@ -120,7 +120,10 @@ export function OrganizerControls({
           <button type="button" onClick={handlePublish} disabled={!canPublish}>
             Publish Result
           </button>
-          <TransactionStatus phase={publishPhase} errorMessage={publishError} />
+          <TransactionStatus
+            phase={publishFlow.phase}
+            errorMessage={publishFlow.error}
+          />
         </div>
       )}
 

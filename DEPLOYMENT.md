@@ -147,6 +147,13 @@ does not enforce deadlines (no verified on-chain clock primitive exists in
 the installed Compact 0.31.1 toolchain), so nothing stops you from closing
 early by other means; the UI just doesn't offer an early-close button.
 
+Note: disconnecting the wallet (or using **Switch match**) clears the
+pasted organizer key from the UI — it is only kept for the session it was
+entered for, and never silently carried into a different match's private
+state. The key you used to connect remains persisted per match address in
+`localStorage`, so reconnecting to the same match as organizer just means
+pasting it again.
+
 The same convenience-only gate also applies on the participant side: once
 a match's deadline passes, the main app stops offering the prediction
 selector for it (a "the submission deadline has passed" message is shown
@@ -254,6 +261,20 @@ here so the next person (or session) doesn't have to rediscover it.
   certainly means the contract was recompiled and the dev server wasn't
   restarted** (the `predev` hook only runs on a fresh start, not on
   hot-reload).
+- **A browser-bundle pitfall worth knowing about:** the production build
+  (`vite build`, Rolldown-based) emits warnings that are actually runtime
+  bugs waiting to happen. `@subsquid/scale-codec` (in the indexer
+  provider's dependency tree) calls Node's `assert` unconditionally, and
+  Vite externalizes that built-in for the browser — leaving the binding
+  undefined. Worse, `isomorphic-ws@5`'s browser entry only has a `default`
+  export while `midnight-js-indexer-public-data-provider` reads the named
+  `ws.WebSocket` for its live-subscription WebSocket, so live ledger
+  updates would silently break in built output. Both are fixed with small
+  shims (`web/src/shims/assert.ts`, `web/src/shims/isomorphic-ws.ts`)
+  wired through `resolve.alias` in `web/vite.config.ts`. If a future
+  dependency bump reintroduces "Module ... has been externalized" or
+  "IMPORT_IS_UNDEFINED" warnings during `vite build`, treat them as bugs,
+  not noise.
 - **In-memory-only private state caused a real, repeated data-loss bug,
   not just a theoretical one.** Twice during real testnet demos, switching
   a tab from participant to organizer (disconnect, then reconnect with the
@@ -291,5 +312,5 @@ here so the next person (or session) doesn't have to rediscover it.
   `docs/privacy-model.md`/`docs/contract-spec.md` — don't rely on the
   deadline as a security boundary.
 - **No leaderboard, no multi-match list.** Out of scope for Wave 1 by
-  design — see `.kiro/specs/privatepredict-wave1/requirements.md`,
-  Requirements 6, 10, and 14.
+  design — see `docs/data-model.md` (one match and one commitment slot per
+  deployment) and `docs/architecture.md`'s implementation note.

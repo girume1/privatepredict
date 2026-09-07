@@ -9,9 +9,9 @@
     "web"
   ],
   "scripts": {
-    "devnet": "cd contract && npm run setup",
-    "test:contract": "cd contract && npm test",
     "build": "npm run build --workspaces",
-    "test": "npm run test --workspaces"
+    "lint": "npm run lint --workspaces",
+    "test": "npm run test --workspaces",
+    "typecheck": "npm run typecheck --workspaces"
   }
 }

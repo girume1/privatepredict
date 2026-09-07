@@ -1,9 +1,9 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vitest";
 import { MatchState, PredictionState } from "@privatepredict/contract";
 import { MatchDetail } from "./MatchDetail.js";
-import type { Match, PredictionStatus } from "../types.js";
+import type { Match, Outcome, PredictionStatus } from "../types.js";
 
 const baseMatch: Match = {
   matchId: new Uint8Array(32).fill(1),
@@ -21,6 +21,7 @@ function noPrediction(): PredictionStatus {
   return {
     predictionState: PredictionState.NO_COMMITMENT,
     hasLocalPrediction: false,
+    isPredictionOwner: false,
     revealedPrediction: null,
     commitment: null,
   };
@@ -105,6 +106,7 @@ describe("MatchDetail", () => {
         predictionStatus={{
           predictionState: PredictionState.COMMITTED,
           hasLocalPrediction: true,
+          isPredictionOwner: true,
           revealedPrediction: null,
           commitment: SAMPLE_COMMITMENT,
         }}
@@ -148,6 +150,7 @@ describe("MatchDetail", () => {
         predictionStatus={{
           predictionState: PredictionState.COMMITTED,
           hasLocalPrediction: true,
+          isPredictionOwner: true,
           revealedPrediction: null,
           commitment: SAMPLE_COMMITMENT,
         }}
@@ -171,6 +174,7 @@ describe("MatchDetail", () => {
         predictionStatus={{
           predictionState: PredictionState.COMMITTED,
           hasLocalPrediction: true,
+          isPredictionOwner: true,
           revealedPrediction: null,
           commitment: SAMPLE_COMMITMENT,
         }}
@@ -198,6 +202,7 @@ describe("MatchDetail", () => {
         predictionStatus={{
           predictionState: PredictionState.COMMITTED,
           hasLocalPrediction: true,
+          isPredictionOwner: true,
           revealedPrediction: null,
           commitment: SAMPLE_COMMITMENT,
         }}
@@ -226,6 +231,7 @@ describe("MatchDetail", () => {
         predictionStatus={{
           predictionState: PredictionState.REVEALED,
           hasLocalPrediction: false,
+          isPredictionOwner: true,
           revealedPrediction: "HOME",
           commitment: SAMPLE_COMMITMENT,
         }}
@@ -247,6 +253,7 @@ describe("MatchDetail", () => {
         predictionStatus={{
           predictionState: PredictionState.COMMITTED,
           hasLocalPrediction: true,
+          isPredictionOwner: true,
           revealedPrediction: null,
           commitment: SAMPLE_COMMITMENT,
         }}
@@ -339,5 +346,352 @@ describe("MatchDetail", () => {
     expect(
       screen.queryByRole("heading", { name: /organizer controls/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it("does not frame another participant's commitment as yours", () => {
+    render(
+      <MatchDetail
+        match={baseMatch}
+        predictionStatus={{
+          predictionState: PredictionState.COMMITTED,
+          hasLocalPrediction: false,
+          isPredictionOwner: false,
+          revealedPrediction: null,
+          commitment: SAMPLE_COMMITMENT,
+        }}
+        walletConnected={true}
+        isOrganizer={false}
+        onSubmitPrediction={vi.fn()}
+        onRevealPrediction={vi.fn()}
+        onCloseMatch={vi.fn()}
+        onPublishResult={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByText(/single prediction slot is already held by another/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/your prediction has been submitted/i),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Your commitment")).not.toBeInTheDocument();
+    expect(screen.queryByRole("radiogroup")).not.toBeInTheDocument();
+  });
+
+  it("does not offer reveal when the on-chain owner differs from this browser", () => {
+    render(
+      <MatchDetail
+        match={{
+          ...baseMatch,
+          matchState: MatchState.RESULT_PUBLISHED,
+          matchResult: "HOME",
+        }}
+        predictionStatus={{
+          predictionState: PredictionState.COMMITTED,
+          hasLocalPrediction: true,
+          isPredictionOwner: false,
+          revealedPrediction: null,
+          commitment: SAMPLE_COMMITMENT,
+        }}
+        walletConnected={true}
+        isOrganizer={false}
+        onSubmitPrediction={vi.fn()}
+        onRevealPrediction={vi.fn()}
+        onCloseMatch={vi.fn()}
+        onPublishResult={vi.fn()}
+      />,
+    );
+    expect(
+      screen.queryByRole("button", { name: "Reveal Prediction" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("explains when local reveal data is missing instead of offering an impossible reveal", () => {
+    render(
+      <MatchDetail
+        match={{
+          ...baseMatch,
+          matchState: MatchState.RESULT_PUBLISHED,
+          matchResult: "HOME",
+        }}
+        predictionStatus={{
+          predictionState: PredictionState.COMMITTED,
+          hasLocalPrediction: false,
+          isPredictionOwner: true,
+          revealedPrediction: null,
+          commitment: SAMPLE_COMMITMENT,
+        }}
+        walletConnected={true}
+        isOrganizer={false}
+        onSubmitPrediction={vi.fn()}
+        onRevealPrediction={vi.fn()}
+        onCloseMatch={vi.fn()}
+        onPublishResult={vi.fn()}
+      />,
+    );
+    expect(
+      screen.queryByRole("button", { name: "Reveal Prediction" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/reveal data .* not available in this browser/i),
+    ).toBeInTheDocument();
+  });
+
+  it("asks a disconnected owner to reconnect once the result is published", () => {
+    render(
+      <MatchDetail
+        match={{
+          ...baseMatch,
+          matchState: MatchState.RESULT_PUBLISHED,
+          matchResult: "HOME",
+        }}
+        predictionStatus={{
+          predictionState: PredictionState.COMMITTED,
+          hasLocalPrediction: true,
+          isPredictionOwner: true,
+          revealedPrediction: null,
+          commitment: SAMPLE_COMMITMENT,
+        }}
+        walletConnected={false}
+        isOrganizer={false}
+        onSubmitPrediction={vi.fn()}
+        onRevealPrediction={vi.fn()}
+        onCloseMatch={vi.fn()}
+        onPublishResult={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByText(/reconnect your wallet to reveal your prediction/i),
+    ).toBeInTheDocument();
+  });
+
+  it("does not report another participant's revealed prediction as the viewer's", () => {
+    render(
+      <MatchDetail
+        match={{
+          ...baseMatch,
+          matchState: MatchState.RESULT_PUBLISHED,
+          matchResult: "HOME",
+          points: 3,
+        }}
+        predictionStatus={{
+          predictionState: PredictionState.REVEALED,
+          hasLocalPrediction: false,
+          isPredictionOwner: false,
+          revealedPrediction: "HOME",
+          commitment: SAMPLE_COMMITMENT,
+        }}
+        walletConnected={true}
+        isOrganizer={false}
+        onSubmitPrediction={vi.fn()}
+        onRevealPrediction={vi.fn()}
+        onCloseMatch={vi.fn()}
+        onPublishResult={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText(/you predicted/i)).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/already been revealed by another participant/i),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the commit dialog open while the submission is pending and closes it on success", async () => {
+    const user = userEvent.setup();
+    let resolveSubmit!: (result: { ok: boolean; txHash?: string }) => void;
+    const onSubmitPrediction = vi.fn(
+      () =>
+        new Promise<{ ok: boolean; txHash?: string }>((resolve) => {
+          resolveSubmit = resolve;
+        }),
+    );
+    render(
+      <MatchDetail
+        match={baseMatch}
+        predictionStatus={noPrediction()}
+        walletConnected={true}
+        isOrganizer={false}
+        onSubmitPrediction={onSubmitPrediction}
+        onRevealPrediction={vi.fn()}
+        onCloseMatch={vi.fn()}
+        onPublishResult={vi.fn()}
+      />,
+    );
+    await user.click(screen.getByRole("radio", { name: "HOME" }));
+    await user.click(screen.getByRole("button", { name: "Submit Prediction" }));
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: "Confirm" }));
+
+    // The transaction is unresolved: Confirm and Cancel are disabled and
+    // the dialog cannot be dismissed via Cancel, Escape, or the backdrop.
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Confirm" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+    await user.keyboard("{Escape}");
+    await user.click(document.querySelector(".dialog-backdrop")!);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    // A real success closes the modal (after the Confirmed state is shown).
+    await act(async () => {
+      resolveSubmit({ ok: true, txHash: "abc" });
+    });
+    expect(await screen.findByText(/confirmed/i)).toBeInTheDocument();
+    await waitFor(
+      () => {
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      },
+      { timeout: 4000, interval: 100 },
+    );
+  });
+
+  it("shows an error instead of a stuck loader when the submission throws", async () => {
+    const user = userEvent.setup();
+    render(
+      <MatchDetail
+        match={baseMatch}
+        predictionStatus={noPrediction()}
+        walletConnected={true}
+        isOrganizer={false}
+        onSubmitPrediction={vi.fn().mockRejectedValue(new Error("boom"))}
+        onRevealPrediction={vi.fn()}
+        onCloseMatch={vi.fn()}
+        onPublishResult={vi.fn()}
+      />,
+    );
+    await user.click(screen.getByRole("radio", { name: "HOME" }));
+    await user.click(screen.getByRole("button", { name: "Submit Prediction" }));
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: "Confirm" }));
+
+    expect(await screen.findByText("boom")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
+  });
+
+  it("keeps the reveal dialog open while the reveal is pending and closes it on success", async () => {
+    const user = userEvent.setup();
+    let resolveReveal!: (result: { ok: boolean; txHash?: string }) => void;
+    const onRevealPrediction = vi.fn(
+      () =>
+        new Promise<{ ok: boolean; txHash?: string }>((resolve) => {
+          resolveReveal = resolve;
+        }),
+    );
+    render(
+      <MatchDetail
+        match={{
+          ...baseMatch,
+          matchState: MatchState.RESULT_PUBLISHED,
+          matchResult: "HOME",
+        }}
+        predictionStatus={{
+          predictionState: PredictionState.COMMITTED,
+          hasLocalPrediction: true,
+          isPredictionOwner: true,
+          revealedPrediction: null,
+          commitment: SAMPLE_COMMITMENT,
+        }}
+        walletConnected={true}
+        isOrganizer={false}
+        onSubmitPrediction={vi.fn()}
+        onRevealPrediction={onRevealPrediction}
+        onCloseMatch={vi.fn()}
+        onPublishResult={vi.fn()}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Reveal Prediction" }));
+    await user.click(screen.getByRole("button", { name: "Confirm Reveal" }));
+
+    // The transaction is unresolved: Confirm Reveal and Cancel are disabled
+    // and the dialog cannot be dismissed (Escape does nothing).
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Confirm Reveal" }),
+    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    // A real success closes the modal (after the Confirmed state is shown).
+    await act(async () => {
+      resolveReveal({ ok: true });
+    });
+    expect(await screen.findByText(/confirmed/i)).toBeInTheDocument();
+    await waitFor(
+      () => {
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      },
+      { timeout: 4000, interval: 100 },
+    );
+  });
+
+  it("disables Confirm immediately and submits only once when activation is repeated", async () => {
+    const user = userEvent.setup();
+    type ActionResult = { ok: boolean; txHash?: string; error?: string };
+    let resolveSubmit!: (result: ActionResult) => void;
+    const onSubmitPrediction = vi.fn(
+      (_outcome: Outcome) =>
+        new Promise<ActionResult>((resolve) => {
+          resolveSubmit = resolve;
+        }),
+    );
+    render(
+      <MatchDetail
+        match={baseMatch}
+        predictionStatus={noPrediction()}
+        walletConnected={true}
+        isOrganizer={false}
+        onSubmitPrediction={onSubmitPrediction}
+        onRevealPrediction={vi.fn()}
+        onCloseMatch={vi.fn()}
+        onPublishResult={vi.fn()}
+      />,
+    );
+    await user.click(screen.getByRole("radio", { name: "HOME" }));
+    await user.click(screen.getByRole("button", { name: "Submit Prediction" }));
+    await user.click(screen.getByRole("checkbox"));
+
+    const confirm = screen.getByRole("button", { name: "Confirm" });
+    await user.click(confirm);
+
+    // Immediately disabled, and repeat activations do not create extra txs.
+    expect(confirm).toBeDisabled();
+    expect(screen.getByText(/submitting transaction/i)).toBeInTheDocument();
+    await user.click(confirm);
+    expect(onSubmitPrediction).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveSubmit({ ok: true });
+    });
+  });
+
+  it("shows Confirmed and closes the commit dialog automatically on success", async () => {
+    const user = userEvent.setup();
+    const onSubmitPrediction = vi.fn(
+      async (_outcome: Outcome) =>
+        ({ ok: true }) as { ok: boolean; txHash?: string; error?: string },
+    );
+    render(
+      <MatchDetail
+        match={baseMatch}
+        predictionStatus={noPrediction()}
+        walletConnected={true}
+        isOrganizer={false}
+        onSubmitPrediction={onSubmitPrediction}
+        onRevealPrediction={vi.fn()}
+        onCloseMatch={vi.fn()}
+        onPublishResult={vi.fn()}
+      />,
+    );
+    await user.click(screen.getByRole("radio", { name: "HOME" }));
+    await user.click(screen.getByRole("button", { name: "Submit Prediction" }));
+    await user.click(screen.getByRole("checkbox"));
+
+    await user.click(screen.getByRole("button", { name: "Confirm" }));
+    expect(await screen.findByText(/confirmed/i)).toBeInTheDocument();
+    await waitFor(
+      () => {
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      },
+      { timeout: 4000, interval: 100 },
+    );
+    expect(onSubmitPrediction).toHaveBeenCalledTimes(1);
   });
 });

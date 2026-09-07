@@ -2,6 +2,7 @@ import { Eye } from "lucide-react";
 import { Dialog } from "./Dialog.js";
 import { TransactionStatus } from "./TransactionStatus.js";
 import type { TxPhase } from "../types.js";
+import { isBusyPhase } from "../useTransactionFlow.js";
 
 interface RevealPredictionDialogProps {
   open: boolean;
@@ -22,17 +23,16 @@ export function RevealPredictionDialog({
   txHash,
   errorMessage,
 }: RevealPredictionDialogProps) {
-  // "success" and "error" are terminal, not pending — a completed
-  // transaction must not leave the dialog stuck with no way to dismiss it.
-  const isPending =
-    txPhase === "proving" ||
-    txPhase === "awaiting_wallet" ||
-    txPhase === "submitted";
+  const isPending = isBusyPhase(txPhase);
+  const confirmLabel = txPhase === "error" ? "Try Again" : "Confirm Reveal";
 
   return (
     <Dialog
       open={open}
       onDismiss={onDismiss}
+      // While the reveal is unresolved the modal must not be dismissible:
+      // leaving and re-confirming could reveal twice while the original
+      // call is still in flight.
       dismissible={!isPending}
       labelledBy={TITLE_ID}
     >
@@ -50,7 +50,7 @@ export function RevealPredictionDialog({
       />
       <div className="dialog-actions">
         <button type="button" onClick={onConfirm} disabled={isPending}>
-          Confirm Reveal
+          {confirmLabel}
         </button>
         <button type="button" onClick={onDismiss} disabled={isPending}>
           Cancel

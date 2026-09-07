@@ -44,7 +44,7 @@ deployment ledger. See `docs/data-model.md`.
 - Reveal from an identity that does not match the original committer
   (`predictionOwner`) is rejected.
 
-## API tests (`api/src/*.test.ts` — 12/12 passing)
+## API tests (`api/test/*.test.ts` — 12/12 passing)
 
 - Commitment generation matches the contract's exported
   `computeCommitment` circuit exactly.
@@ -55,21 +55,39 @@ deployment ledger. See `docs/data-model.md`.
 - Errors from failed circuit calls surface as typed, human-readable
   errors — never raw Compact runtime errors.
 
-## Frontend tests (`web/src/**/*.test.tsx` — 111/111 passing)
+## Frontend tests (`web/src/**/*.test.{ts,tsx}` — 142/142 passing)
 
 - Local state (pending prediction/salt) is never rendered, logged, or sent
   anywhere before an explicit reveal.
 - `CommitPredictionDialog`/`RevealPredictionDialog` never get stuck after a
   successful or failed transaction — always dismissible once the
-  transaction reaches a terminal state.
+  transaction reaches a terminal state, including after the proving-phase
+  timeout reports back and the phase flips to a dismissible error.
+- The shared `Dialog` traps Tab focus, restores focus on close, dismisses on
+  Escape and backdrop clicks when dismissible, and does neither when a
+  transaction is pending.
 - `OrganizerControls` only renders for the organizer identity, gates Close
   Match on the (client-side-only) deadline, and surfaces failures without
   pretending success.
 - `MatchDetail` shows the correct action/message for every
-  `(matchState, predictionState, walletConnected)` combination, including
-  the deadline-passed courtesy message on the participant submission path.
-- `PrivacyPanel` reflects the correct public/private split at each
-  lifecycle stage.
+  `(matchState, predictionState, walletConnected, isPredictionOwner,
+  hasLocalPrediction)` combination — including the deadline-passed courtesy
+  message, the disconnected-owner "reconnect to reveal" prompt, the
+  missing-local-reveal-data explanation, and neutral (non-owner) copy that
+  never frames another participant's commitment or revealed prediction as
+  the viewer's.
+- The transaction-modal state machine (`useTransactionFlow`, shared by the
+  commit/reveal dialogs and organizer actions): Confirm disables the instant
+  it is clicked, repeated activations cannot create a second transaction
+  (single-flight), the 30-second wait escalates only to a "still processing"
+  pending state and never marks the transaction as failed, a definitive
+  failure re-enables the action as "Try Again", a resolved success shows
+  "Confirmed" and auto-closes the modal, and while unresolved the dialog is
+  not dismissible and remains pending until a definitive result.
+- `PrivacyPanel` reflects the correct public/private split at each lifecycle
+  stage, for both the slot owner and a non-owner observer.
+- `MatchList` rejects addresses that are not full 64-hex-character contract
+  addresses before they can be added.
 
 ## Verified live on Midnight Preview testnet
 

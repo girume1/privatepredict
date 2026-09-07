@@ -3,19 +3,22 @@ import type { PrivacyStage } from "../types.js";
 
 interface PrivacyPanelProps {
   predictionState: PrivacyStage;
+  /**
+   * When false, the on-chain slot is held by another participant, so the
+   * "private" column must not claim anything of the viewer's is stored.
+   */
+  ownsPrediction?: boolean;
 }
 
-const STAGE_LABEL: Record<PrivacyStage, string> = {
-  "before-commitment": "before commitment",
+const OWNER_STAGE_LABEL: Record<"committed" | "revealed", string> = {
   committed: "committed",
   revealed: "revealed",
 };
 
-const CONTENT: Record<PrivacyStage, { private: string[]; public: string[] }> = {
-  "before-commitment": {
-    private: ["Your selected prediction", "A future random salt"],
-    public: ["Nothing has been submitted yet"],
-  },
+const OWNER_CONTENT: Record<
+  "committed" | "revealed",
+  { private: string[]; public: string[] }
+> = {
   committed: {
     private: ["Your plaintext prediction", "Your salt"],
     public: ["Match identifier", "Submission timing", "Your commitment"],
@@ -26,10 +29,58 @@ const CONTENT: Record<PrivacyStage, { private: string[]; public: string[] }> = {
   },
 };
 
+const OBSERVER_CONTENT: Record<
+  "committed" | "revealed",
+  { private: string[]; public: string[] }
+> = {
+  committed: {
+    private: [
+      "Nothing of yours — this browser does not hold the keys for this slot",
+    ],
+    public: [
+      "Match identifier",
+      "Submission timing",
+      "Another participant's commitment",
+    ],
+  },
+  revealed: {
+    private: [
+      "Nothing of yours — this browser does not hold the keys for this slot",
+    ],
+    public: [
+      "Another participant's revealed prediction",
+      "The match result",
+      "Their score",
+    ],
+  },
+};
+
+const BEFORE_CONTENT = {
+  private: ["Your selected prediction", "A future random salt"],
+  public: ["Nothing has been submitted yet"],
+};
+
 /** Purely presentational — no business logic, no API calls. */
-export function PrivacyPanel({ predictionState }: PrivacyPanelProps) {
-  const stageLabel = STAGE_LABEL[predictionState];
-  const content = CONTENT[predictionState];
+export function PrivacyPanel({
+  predictionState,
+  ownsPrediction = true,
+}: PrivacyPanelProps) {
+  // "before-commitment" means the slot is still free, so the panel is the
+  // same for every viewer. Once a slot is committed/revealed, only the slot
+  // owner is shown personal copy ("your prediction/salt"); everyone else
+  // sees neutral wording that attributes the on-chain data to its owner.
+  const owned = predictionState === "before-commitment" || ownsPrediction;
+  const content =
+    predictionState === "before-commitment"
+      ? BEFORE_CONTENT
+      : owned
+        ? OWNER_CONTENT[predictionState]
+        : OBSERVER_CONTENT[predictionState];
+  const stageLabel = owned
+    ? predictionState === "before-commitment"
+      ? "before commitment"
+      : OWNER_STAGE_LABEL[predictionState]
+    : "another participant's slot";
 
   return (
     <div className="privacy-panel">

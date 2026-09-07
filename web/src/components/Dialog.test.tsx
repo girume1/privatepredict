@@ -72,4 +72,28 @@ describe("Dialog", () => {
     await user.keyboard("{Escape}");
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
+
+  it("dismisses on a backdrop click when dismissible", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    await user.click(document.querySelector(".dialog-backdrop")!);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("does not dismiss when clicking inside the dialog", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    await user.click(screen.getByRole("button", { name: "Last" }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("does not dismiss on a backdrop click when not dismissible", async () => {
+    const user = userEvent.setup();
+    render(<Harness dismissible={false} />);
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    await user.click(document.querySelector(".dialog-backdrop")!);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
 });

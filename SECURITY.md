@@ -39,15 +39,16 @@ Please do not include seed phrases, private keys, API secrets, unrevealed predic
 The Compact contract is the source of truth for:
 
 - Match lifecycle transitions
-- Prediction submission deadlines
 - Commitment storage
 - Commitment reveal verification
 - Result publication authority
 - Mock-point scoring
-- Single-claim protections
-- Authorization checks
+- Single-claim protections (no duplicate submissions or reveals)
+- Authorization checks (organizer and prediction-owner checks)
 
 The frontend is not trusted to determine authorization, ownership, scoring, match status, or result validity.
+
+**Documented exception — deadlines are *not* contract-enforced.** The verified Compact toolchain has no time/clock primitive, so `deadline` is stored for display only; client-side deadline gates are a UX convenience, not a security boundary (see `README.md`'s verification table and `docs/privacy-model.md`).
 
 ### Privacy boundary
 
@@ -56,6 +57,8 @@ Private until a user chooses to reveal:
 - Prediction outcome: `HOME`, `DRAW`, or `AWAY`
 - Random salt used to create a commitment
 - User-local private state
+
+User-local private state (the pending prediction/salt and the participant/organizer identity keys) is persisted in the browser's `localStorage`, scoped per match contract address, on that device only — it is never transmitted anywhere, and clearing site data loses it permanently (see `docs/privacy-model.md`).
 
 Public on the Midnight ledger:
 
@@ -101,15 +104,11 @@ Use environment variables for non-public configuration values. Commit an `.env.e
 
 ### Input validation
 
-All user-controlled values must be validated in the Compact contract and, where applicable, in TypeScript:
+Validation is layered, and the current Wave 1 reality is stated precisely:
 
-- Prediction outcomes must be allowlisted: `HOME`, `DRAW`, or `AWAY`
-- Match IDs must follow the expected type and length limits
-- Deadlines must be valid
-- Match state transitions must be valid
-- Results must be valid
-- Duplicate submissions must be rejected
-- Duplicate reveals and score claims must be rejected
+- **Contract-enforced:** match state transitions, single commitment per deployment, organizer authorization, result publication only while `CLOSED`, reveal only after `RESULT_PUBLISHED`, and commitment recomputation at reveal.
+- **API/UI-layer only (not yet contract-enforced):** prediction/result values are restricted to the allowlisted `HOME`/`DRAW`/`AWAY` encoding by `api/src/outcome.ts` and the organizer's result selector. The contract itself accepts any 32-byte value (`publishResult`'s documented Wave 2 TODO). Since a caller can bypass the UI, a non-canonical published result is possible today; its only effect is that no canonical prediction can score 3 points against it.
+- **Client-side convenience only:** the submission deadline gate and match-address format checks (64 hex characters) in the web app.
 
 Client-side validation improves user experience but is never a security boundary.
 
@@ -119,7 +118,6 @@ Before each Buildathon submission:
 
 ```bash
 npm audit
-bun audit
 ```
 
 Review high- and critical-severity findings and update dependencies where practical. Do not blindly apply breaking dependency updates without testing the application afterward.

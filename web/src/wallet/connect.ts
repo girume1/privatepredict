@@ -116,7 +116,13 @@ function pollUntil<T>(
   });
 }
 
-function withTimeout<T>(
+/**
+ * Races `promise` against a deadline: resolves with its value, or rejects
+ * with `timeoutMessage` if it settles too late (or never — a hung proof
+ * server or unresponsive wallet must not block the caller forever). The
+ * underlying promise keeps running; only the caller's await is released.
+ */
+export function withTimeout<T>(
   promise: Promise<T>,
   timeoutMs: number,
   timeoutMessage: string,

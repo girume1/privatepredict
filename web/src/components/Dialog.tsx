@@ -26,6 +26,15 @@ export function Dialog({
 }: DialogProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
+  // Refs keep the keydown/close behaviour reading the *latest* props without
+  // re-running the open/close effect (and yanking focus) whenever a caller
+  // passes a new onDismiss/dismissible identity on a parent re-render.
+  const onDismissRef = useRef(onDismiss);
+  const dismissibleRef = useRef(dismissible);
+  useEffect(() => {
+    onDismissRef.current = onDismiss;
+    dismissibleRef.current = dismissible;
+  });
 
   useEffect(() => {
     if (!open) {
@@ -39,8 +48,8 @@ export function Dialog({
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        if (dismissible) {
-          onDismiss();
+        if (dismissibleRef.current) {
+          onDismissRef.current();
         }
         return;
       }
@@ -69,20 +78,25 @@ export function Dialog({
       document.removeEventListener("keydown", handleKeyDown);
       triggerRef.current?.focus();
     };
-  }, [open, dismissible, onDismiss]);
+  }, [open]);
 
   if (!open) {
     return null;
   }
 
   return (
-    <div className="dialog-backdrop" role="presentation">
+    <div
+      className="dialog-backdrop"
+      role="presentation"
+      onClick={dismissible ? onDismiss : undefined}
+    >
       <div
         ref={containerRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy}
         className="dialog"
+        onClick={(event) => event.stopPropagation()}
       >
         {children}
       </div>

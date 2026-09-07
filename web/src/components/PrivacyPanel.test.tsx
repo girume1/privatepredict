@@ -36,4 +36,26 @@ describe("PrivacyPanel", () => {
       screen.getByText(/no active unrevealed prediction data/i),
     ).toBeInTheDocument();
   });
+
+  it("labels the private column neutrally when the slot belongs to another participant", () => {
+    render(<PrivacyPanel predictionState="committed" ownsPrediction={false} />);
+    expect(
+      screen.getByRole("region", {
+        name: /private information — another participant's slot/i,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/nothing of yours/i)).toBeInTheDocument();
+    expect(
+      screen.queryByText("Your plaintext prediction"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/another participant's commitment/i),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the personal committed view for the slot owner", () => {
+    render(<PrivacyPanel predictionState="committed" ownsPrediction={true} />);
+    expect(screen.getByText("Your plaintext prediction")).toBeInTheDocument();
+    expect(screen.getByText("Your commitment")).toBeInTheDocument();
+  });
 });

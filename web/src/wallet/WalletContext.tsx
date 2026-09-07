@@ -6,6 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { type Subscription } from "rxjs";
 import {
   generateSalt,
   computeCommitment,
@@ -14,7 +15,7 @@ import {
   type PredictionBoardAPI,
   type PredictionBoardDerivedState,
 } from "@privatepredict/api";
-import { connectAndJoin } from "./connect.js";
+import { connectAndJoin, withTimeout } from "./connect.js";
 import {
   savePending,
   loadPending,
@@ -48,6 +49,20 @@ function toMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/**
+ * One `api.submitPrediction`/`api.revealPrediction` await spans the whole
+ * pipeline: zk-config fetch and proof generation on the local proof
+ * server, wallet balancing/signature dispatch, and on-chain submission.
+ * If the proof server hangs or the wallet never responds, that promise
+ * never settles and the modal's loader would spin forever — so every
+ * call is raced against this deadline. The rejection surfaces as an
+ * ActionResult error and releases the UI; the transaction may still
+ * complete in the background, which the message is careful to say.
+ */
+const TX_TIMEOUT_MS = 30_000;
+const TX_TIMEOUT_MESSAGE =
+  "The transaction did not complete within 30 seconds — the wallet or local proof server may be unresponsive. It may still complete, so check the wallet before retrying.";
+
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,6 +74,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const apiRef = useRef<PredictionBoardAPI | null>(null);
   const contractAddressRef = useRef<string | null>(null);
   const pendingRef = useRef<PendingPrediction | null>(null);
+  /**
+   * Tracks the live state$ subscription so reconnect/switch-match never
+   * leaves the previous match's subscription (and its indexer connection)
+   * running: a stale emission from an old match used to overwrite the
+   * currently selected match's derived state via setDerivedState.
+   */
+  const stateSubscriptionRef = useRef<Subscription | null>(null);
 
   const connect = useCallback(
     async (contractAddress: string, organizerSecretKey?: Uint8Array) => {
@@ -72,6 +94,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         if (!contractAddress) {
           throw new Error("No match selected.");
         }
+        stateSubscriptionRef.current?.unsubscribe();
+        stateSubscriptionRef.current = null;
         const connection = await connectAndJoin(
           networkId,
           contractAddress,
@@ -86,7 +110,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         pendingRef.current = restored;
         setHasLocalPrediction(restored !== null);
         setWalletAddress(connection.walletAddress);
-        connection.api.state$.subscribe({
+        stateSubscriptionRef.current = connection.api.state$.subscribe({
           next: setDerivedState,
           error: (e: unknown) => setError(toMessage(e)),
         });
@@ -100,6 +124,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   );
 
   const disconnect = useCallback(() => {
+    stateSubscriptionRef.current?.unsubscribe();
+    stateSubscriptionRef.current = null;
     apiRef.current = null;
     contractAddressRef.current = null;
     pendingRef.current = null;
@@ -127,6 +153,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           savePending(contractAddressRef.current, pending);
         }
         setHasLocalPrediction(true);
+        // Do not race commit submission against a frontend timeout. The
+        // caller must remain locked until the wallet/API promise settles so a
+        // slow proof or wallet response cannot result in a duplicate commit.
         await api.submitPrediction(commitment);
         return { ok: true };
       } catch (e) {
@@ -150,7 +179,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       };
     }
     try {
-      await api.revealPrediction(pending.prediction, pending.salt);
+      await withTimeout(
+        api.revealPrediction(pending.prediction, pending.salt),
+        TX_TIMEOUT_MS,
+        TX_TIMEOUT_MESSAGE,
+      );
       pendingRef.current = null;
       if (contractAddressRef.current) {
         clearPending(contractAddressRef.current);

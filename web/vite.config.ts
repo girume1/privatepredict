@@ -75,6 +75,33 @@ export default defineConfig({
   resolve: {
     extensions: [".mjs", ".js", ".ts", ".jsx", ".tsx", ".json", ".wasm"],
     mainFields: ["browser", "module", "main"],
+    alias: [
+      // Browser shims for Node built-ins / CJS interop gaps used by the
+      // Midnight SDK's dependency tree:
+      //  - `assert`: @subsquid/scale-codec & @subsquid/util-internal-hex call
+      //    it unconditionally; externalized it would be undefined at runtime.
+      //  - `isomorphic-ws`: its browser entry only has a default export, but
+      //    midnight-js-indexer-public-data-provider reads `ws.WebSocket`.
+      // See web/src/shims/*.ts for details.
+      {
+        find: "assert",
+        replacement: fileURLToPath(
+          new URL("./src/shims/assert.ts", import.meta.url),
+        ),
+      },
+      {
+        find: "node:assert",
+        replacement: fileURLToPath(
+          new URL("./src/shims/assert.ts", import.meta.url),
+        ),
+      },
+      {
+        find: "isomorphic-ws",
+        replacement: fileURLToPath(
+          new URL("./src/shims/isomorphic-ws.ts", import.meta.url),
+        ),
+      },
+    ],
     // Fixes a real, reproduced bug: without forcing these to a single
     // canonical instance, Vite's dep pre-bundler can create two separate
     // copies of ledger-v8's wasm-bindgen module (reached via different

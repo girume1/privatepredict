@@ -116,4 +116,22 @@ describe("MatchList", () => {
     expect(onAdd).not.toHaveBeenCalled();
     expect(screen.getByRole("alert")).toBeInTheDocument();
   });
+
+  it("rejects a valid-hex address that is not a full 64-character contract address", async () => {
+    const user = userEvent.setup();
+    const onAdd = vi.fn();
+    render(
+      <MatchList
+        matches={[]}
+        onSelect={vi.fn()}
+        onAdd={onAdd}
+        onRemove={vi.fn()}
+      />,
+    );
+    await user.type(screen.getByLabelText("Contract address"), "abcd");
+    await user.click(screen.getByRole("button", { name: /add match/i }));
+
+    expect(onAdd).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent(/64 hex characters/i);
+  });
 });

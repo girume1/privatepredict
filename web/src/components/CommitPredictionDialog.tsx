@@ -3,6 +3,7 @@ import { LockKeyhole } from "lucide-react";
 import { Dialog } from "./Dialog.js";
 import { TransactionStatus } from "./TransactionStatus.js";
 import type { Outcome, TxPhase } from "../types.js";
+import { isBusyPhase } from "../useTransactionFlow.js";
 
 interface CommitPredictionDialogProps {
   outcome: Outcome;
@@ -26,17 +27,18 @@ export function CommitPredictionDialog({
   errorMessage,
 }: CommitPredictionDialogProps) {
   const [acknowledged, setAcknowledged] = useState(false);
-  // "success" and "error" are terminal, not pending — a completed
-  // transaction must not leave the dialog stuck with no way to dismiss it.
-  const isPending =
-    txPhase === "proving" ||
-    txPhase === "awaiting_wallet" ||
-    txPhase === "submitted";
+  const isPending = isBusyPhase(txPhase);
+  // Terminal-but-retryable error state: Confirm becomes "Try Again" and is
+  // re-enabled; terminal success auto-closes via the parent shortly after.
+  const confirmLabel = txPhase === "error" ? "Try Again" : "Confirm";
 
   return (
     <Dialog
       open={open}
       onDismiss={onDismiss}
+      // While the transaction is unresolved the modal must not be
+      // dismissible: leaving and re-confirming would submit a duplicate
+      // while the original call is still in flight.
       dismissible={!isPending}
       labelledBy={TITLE_ID}
     >
@@ -51,8 +53,8 @@ export function CommitPredictionDialog({
           reveal it.
         </li>
         <li>
-          You must retain your wallet connection to reveal your prediction
-          later.
+          Your prediction and its secret are stored only in this browser, on
+          this device — reveal later from the same browser and device.
         </li>
       </ul>
       <label>
@@ -62,8 +64,8 @@ export function CommitPredictionDialog({
           onChange={(e) => setAcknowledged(e.target.checked)}
           disabled={isPending}
         />
-        I understand I must keep my wallet connected to reveal my prediction
-        later.
+        I understand I must reveal from the same browser and device where I
+        submitted.
       </label>
       <TransactionStatus
         phase={txPhase}
@@ -76,7 +78,7 @@ export function CommitPredictionDialog({
           onClick={onConfirm}
           disabled={!acknowledged || isPending}
         >
-          Confirm
+          {confirmLabel}
         </button>
         <button type="button" onClick={onDismiss} disabled={isPending}>
           Cancel

@@ -28,9 +28,17 @@ export function MatchList({
 
   function handleAdd() {
     const trimmed = address.trim();
-    if (!trimmed || !hexToBytes(trimmed)) {
+    const bytes = hexToBytes(trimmed);
+    // Contract addresses are 32-byte hex (64 characters). Validate the
+    // exact length here so a typo surfaces immediately instead of as an
+    // obscure wallet/indexer failure after "connecting".
+    if (!trimmed) {
+      setError("Enter the contract address shown when the match was deployed.");
+      return;
+    }
+    if (!bytes || bytes.length !== 32) {
       setError(
-        "Enter the contract address exactly as shown when the match was deployed (hex characters only).",
+        "Contract addresses are 64 hex characters (32 bytes). Check the full address was copied — hex characters only.",
       );
       return;
     }

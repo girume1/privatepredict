@@ -39,7 +39,16 @@ function AppContent() {
     if (wallet.connected) {
       wallet.disconnect();
     }
+    // The imported organizer secret key belongs to the previous match's
+    // deployment. Without clearing it here it would silently be merged into
+    // the next match's persisted private state on connect (see connect.ts).
+    setOrganizerSecretKey(null);
     setSelectedAddress(null);
+  }
+
+  function handleDisconnect() {
+    wallet.disconnect();
+    setOrganizerSecretKey(null);
   }
 
   if (!selectedAddress) {
@@ -72,6 +81,7 @@ function AppContent() {
     ? {
         predictionState: derivedState.predictionState,
         hasLocalPrediction: wallet.hasLocalPrediction,
+        isPredictionOwner: derivedState.isPredictionOwner,
         revealedPrediction: derivedState.revealedPrediction,
         commitment:
           derivedState.predictionState === PredictionState.NO_COMMITMENT
@@ -96,7 +106,7 @@ function AppContent() {
         onConnect={() =>
           wallet.connect(selectedAddress, organizerSecretKey ?? undefined)
         }
-        onDisconnect={wallet.disconnect}
+        onDisconnect={handleDisconnect}
       />
       {!wallet.connected && (
         <OrganizerKeyInput
