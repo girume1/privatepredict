@@ -18,7 +18,9 @@ describe("ParticipantKeyInput", () => {
     const user = userEvent.setup();
     render(<ParticipantKeyInput onImport={vi.fn()} />);
 
-    await user.click(screen.getByRole("button", { name: /i'm a returning participant/i }));
+    await user.click(
+      screen.getByRole("button", { name: /i'm a returning participant/i }),
+    );
 
     expect(screen.getByLabelText("Participant secret key")).toBeInTheDocument();
   });
@@ -29,10 +31,7 @@ describe("ParticipantKeyInput", () => {
     render(<ParticipantKeyInput onImport={onImport} />);
 
     await user.click(screen.getByText(/i'm a returning participant/i));
-    await user.type(
-      screen.getByLabelText("Participant secret key"),
-      VALID_KEY,
-    );
+    await user.type(screen.getByLabelText("Participant secret key"), VALID_KEY);
 
     expect(onImport).toHaveBeenLastCalledWith(hexToBytes(VALID_KEY));
   });

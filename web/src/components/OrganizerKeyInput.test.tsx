@@ -9,7 +9,9 @@ const VALID_KEY = "a".repeat(64);
 describe("OrganizerKeyInput", () => {
   it("is collapsed by default", () => {
     render(<OrganizerKeyInput onImport={vi.fn()} />);
-    expect(screen.queryByLabelText("Organizer secret key")).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("Organizer secret key"),
+    ).not.toBeInTheDocument();
   });
 
   it("imports a valid 64-character hex key", async () => {

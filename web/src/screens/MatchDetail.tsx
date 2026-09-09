@@ -200,13 +200,14 @@ export function MatchDetail({
       )}
 
       {/* ── Result published banner ── */}
-      {match.matchState === MatchState.RESULT_PUBLISHED && match.matchResult && (
-        <StatusCard
-          icon={<CheckCircle2 size={20} />}
-          title={`Result: ${match.matchResult}`}
-          variant="info"
-        />
-      )}
+      {match.matchState === MatchState.RESULT_PUBLISHED &&
+        match.matchResult && (
+          <StatusCard
+            icon={<CheckCircle2 size={20} />}
+            title={`Result: ${match.matchResult}`}
+            variant="info"
+          />
+        )}
 
       {/* ── OPEN state: no prediction yet ── */}
       {match.matchState === MatchState.OPEN &&

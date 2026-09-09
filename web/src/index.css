@@ -654,10 +654,18 @@ button:not(.match-list-select):not(.key-input-toggle):hover:not(:disabled) {
   color: inherit;
 }
 
-.status-card--info .status-card-icon    { color: #6ea8d8; }
-.status-card--success .status-card-icon { color: var(--color-success); }
-.status-card--warning .status-card-icon { color: #f0b429; }
-.status-card--muted .status-card-icon   { color: var(--color-text-muted); }
+.status-card--info .status-card-icon {
+  color: #6ea8d8;
+}
+.status-card--success .status-card-icon {
+  color: var(--color-success);
+}
+.status-card--warning .status-card-icon {
+  color: #f0b429;
+}
+.status-card--muted .status-card-icon {
+  color: var(--color-text-muted);
+}
 
 .status-card-content {
   display: flex;
@@ -706,8 +714,12 @@ button:not(.match-list-select):not(.key-input-toggle):hover:not(:disabled) {
   margin-top: 0.1rem;
 }
 
-.score-reveal--correct .score-reveal-icon { color: var(--color-success); }
-.score-reveal--incorrect .score-reveal-icon { color: var(--color-text-muted); }
+.score-reveal--correct .score-reveal-icon {
+  color: var(--color-success);
+}
+.score-reveal--incorrect .score-reveal-icon {
+  color: var(--color-text-muted);
+}
 
 .score-reveal-content {
   display: flex;
@@ -722,7 +734,9 @@ button:not(.match-list-select):not(.key-input-toggle):hover:not(:disabled) {
   font-size: 1.0625rem;
 }
 
-.score-reveal--correct .score-reveal-result { color: var(--color-success); }
+.score-reveal--correct .score-reveal-result {
+  color: var(--color-success);
+}
 
 .score-reveal-points {
   margin: 0;
@@ -732,8 +746,12 @@ button:not(.match-list-select):not(.key-input-toggle):hover:not(:disabled) {
   line-height: 1.1;
 }
 
-.score-reveal--correct .score-reveal-points  { color: var(--color-success); }
-.score-reveal--incorrect .score-reveal-points { color: var(--color-text-muted); }
+.score-reveal--correct .score-reveal-points {
+  color: var(--color-success);
+}
+.score-reveal--incorrect .score-reveal-points {
+  color: var(--color-text-muted);
+}
 
 .score-reveal-detail {
   display: flex;
@@ -807,8 +825,12 @@ button:not(.match-list-select):not(.key-input-toggle):hover:not(:disabled) {
 /* ── Skeleton loader ──────────────────────────────────────────────────────── */
 
 @keyframes shimmer {
-  0%   { background-position: -200% 0; }
-  100% { background-position:  200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 .skeleton {
@@ -824,7 +846,10 @@ button:not(.match-list-select):not(.key-input-toggle):hover:not(:disabled) {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .skeleton { animation: none; background: var(--color-surface); }
+  .skeleton {
+    animation: none;
+    background: var(--color-surface);
+  }
 }
 
 .match-skeleton {
@@ -834,9 +859,19 @@ button:not(.match-list-select):not(.key-input-toggle):hover:not(:disabled) {
   margin-top: 0.5rem;
 }
 
-.skeleton--title    { height: 2rem;   width: 60%; }
-.skeleton--timeline { height: 2.5rem; width: 100%; }
-.skeleton--card     { height: 6rem;   width: 100%; border-radius: 0.5rem; }
+.skeleton--title {
+  height: 2rem;
+  width: 60%;
+}
+.skeleton--timeline {
+  height: 2.5rem;
+  width: 100%;
+}
+.skeleton--card {
+  height: 6rem;
+  width: 100%;
+  border-radius: 0.5rem;
+}
 
 /* ── Mobile / responsive ──────────────────────────────────────────────────── */
 

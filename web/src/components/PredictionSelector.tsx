@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import type { Outcome } from "../types.js";
 
 interface PredictionSelectorProps {
@@ -17,14 +17,18 @@ const OPTIONS: Outcome[] = ["HOME", "DRAW", "AWAY"];
  * keyboard wiring required. The <fieldset>/<legend> provides the group
  * label. The selected value is tracked in React state so the Submit button
  * can be disabled until a choice is made.
+ *
+ * The group name is generated once via useState initializer (not useRef) to
+ * avoid calling Math.random() — an impure function — on every render, and to
+ * avoid reading a ref value during render (react-hooks/refs).
  */
 export function PredictionSelector({
   onSubmit,
   disabled = false,
 }: PredictionSelectorProps) {
   const [selected, setSelected] = useState<Outcome | null>(null);
-  const groupName = useRef(
-    `prediction-${Math.random().toString(36).slice(2)}`,
+  const [groupName] = useState(
+    () => `prediction-${Math.random().toString(36).slice(2)}`,
   );
 
   return (
@@ -38,7 +42,7 @@ export function PredictionSelector({
           >
             <input
               type="radio"
-              name={groupName.current}
+              name={groupName}
               value={outcome}
               checked={selected === outcome}
               onChange={() => setSelected(outcome)}

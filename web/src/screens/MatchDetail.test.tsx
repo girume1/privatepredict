@@ -41,7 +41,9 @@ describe("MatchDetail", () => {
         onPublishResult={vi.fn()}
       />,
     );
-    expect(screen.getByText(/connect a wallet to load this match/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/connect a wallet to load this match/i),
+    ).toBeInTheDocument();
   });
 
   it("prompts to connect a wallet when OPEN + NO_COMMITMENT + disconnected", () => {
@@ -57,8 +59,12 @@ describe("MatchDetail", () => {
         onPublishResult={vi.fn()}
       />,
     );
-    expect(screen.getByText(/connect your wallet to submit a prediction/i)).toBeInTheDocument();
-    expect(screen.queryByRole("radio", { name: "HOME" })).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/connect your wallet to submit a prediction/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("radio", { name: "HOME" }),
+    ).not.toBeInTheDocument();
   });
 
   it("renders the PredictionSelector when OPEN + NO_COMMITMENT + connected", () => {
@@ -90,7 +96,9 @@ describe("MatchDetail", () => {
         onPublishResult={vi.fn()}
       />,
     );
-    expect(screen.queryByRole("radio", { name: "HOME" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("radio", { name: "HOME" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByText(/submission deadline has passed/i),
     ).toBeInTheDocument();
@@ -374,7 +382,9 @@ describe("MatchDetail", () => {
       screen.queryByText(/your prediction.*committed/i),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("Your commitment")).not.toBeInTheDocument();
-    expect(screen.queryByRole("radio", { name: "HOME" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("radio", { name: "HOME" }),
+    ).not.toBeInTheDocument();
   });
 
   it("does not offer reveal when the on-chain owner differs from this browser", () => {
@@ -489,9 +499,7 @@ describe("MatchDetail", () => {
       />,
     );
     expect(screen.queryByText(/you predicted/i)).not.toBeInTheDocument();
-    expect(
-      screen.getByText(/match has been revealed/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/match has been revealed/i)).toBeInTheDocument();
   });
 
   it("keeps the commit dialog open while the submission is pending and closes it on success", async () => {

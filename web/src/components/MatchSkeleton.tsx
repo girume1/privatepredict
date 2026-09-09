@@ -5,7 +5,11 @@
  */
 export function MatchSkeleton() {
   return (
-    <div className="match-skeleton" aria-busy="true" aria-label="Loading match data">
+    <div
+      className="match-skeleton"
+      aria-busy="true"
+      aria-label="Loading match data"
+    >
       <div className="skeleton skeleton--title" />
       <div className="skeleton skeleton--timeline" />
       <div className="skeleton skeleton--card" />

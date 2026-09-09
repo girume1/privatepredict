@@ -84,7 +84,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const stateSubscriptionRef = useRef<Subscription | null>(null);
 
   const connect = useCallback(
-    async (contractAddress: string, organizerSecretKey?: Uint8Array, participantSecretKey?: Uint8Array) => {
+    async (
+      contractAddress: string,
+      organizerSecretKey?: Uint8Array,
+      participantSecretKey?: Uint8Array,
+    ) => {
       setConnecting(true);
       setError(null);
       try {
