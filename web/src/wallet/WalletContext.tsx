@@ -152,19 +152,28 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         const prediction = encodeOutcome(outcome);
         const commitment = computeCommitment(prediction, salt);
         const pending = { prediction, salt };
-        pendingRef.current = pending;
-        // Persisted per contract address (see pendingPrediction.ts) so a
-        // later reconnect or page reload can still find it before reveal.
-        if (contractAddressRef.current) {
-          savePending(contractAddressRef.current, pending);
-        }
-        setHasLocalPrediction(true);
         // Do not race commit submission against a frontend timeout. The
         // caller must remain locked until the wallet/API promise settles so a
         // slow proof or wallet response cannot result in a duplicate commit.
         await api.submitPrediction(commitment);
+        // Only persist the pending prediction AFTER the on-chain submission
+        // succeeds. Saving before the call meant a failed transaction would
+        // leave stale {prediction, salt} in localStorage, which could be
+        // picked up by a different wallet connecting to the same contract
+        // address in the same browser and incorrectly show a reveal button.
+        pendingRef.current = pending;
+        if (contractAddressRef.current) {
+          savePending(contractAddressRef.current, pending);
+        }
+        setHasLocalPrediction(true);
         return { ok: true };
       } catch (e) {
+        // Ensure no stale pending data is left behind on failure.
+        pendingRef.current = null;
+        if (contractAddressRef.current) {
+          clearPending(contractAddressRef.current);
+        }
+        setHasLocalPrediction(false);
         return { ok: false, error: toMessage(e) };
       }
     },
