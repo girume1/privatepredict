@@ -120,9 +120,9 @@ closing and publishing are participant-app actions, gated on your
 identity, not separate tooling). Before connecting, expand **"I'm the
 organizer"** and paste the organizer secret key you saved in Step 1, then
 click **Connect Wallet**. Once connected, an **Organizer controls** section
-appears (alongside the normal participant view — being the organizer
-doesn't hide your own participant controls, in case you're also
-predicting).
+appears. The participant prediction controls (prediction selector, status
+cards, reveal button) are hidden when the organizer identity is active —
+use a separate browser or wallet to participate in your own match.
 
 **If you are also the participant who submitted a prediction**, switching
 to the organizer identity in the same tab (disconnect, then reconnect with
