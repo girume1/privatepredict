@@ -318,7 +318,7 @@ describe("MatchDetail", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows organizer controls alongside participant controls when isOrganizer is true", () => {
+  it("shows organizer controls and hides participant controls when isOrganizer is true", () => {
     render(
       <MatchDetail
         match={baseMatch}
@@ -334,8 +334,11 @@ describe("MatchDetail", () => {
     expect(
       screen.getByRole("heading", { name: /organizer controls/i }),
     ).toBeInTheDocument();
-    // Participant controls remain visible too — organizer status doesn't hide them.
-    expect(screen.getByRole("radio", { name: "HOME" })).toBeInTheDocument();
+    // Participant prediction controls are hidden for the organizer — they
+    // manage the match, not participate in it from the same view.
+    expect(
+      screen.queryByRole("radio", { name: "HOME" }),
+    ).not.toBeInTheDocument();
   });
 
   it("does not show organizer controls when isOrganizer is false", () => {
