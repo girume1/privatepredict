@@ -170,9 +170,10 @@ describe("MatchDetail", () => {
         onPublishResult={vi.fn()}
       />,
     );
-    expect(
-      screen.getByRole("button", { name: "Reveal Prediction" }),
-    ).toBeInTheDocument();
+    // Button is present and fully active (no aria-disabled) at RESULT_PUBLISHED
+    const btn = screen.getByRole("button", { name: "Reveal prediction" });
+    expect(btn).toBeInTheDocument();
+    expect(btn).not.toHaveAttribute("aria-disabled");
   });
 
   it("does not offer reveal before the result is published, even if committed", () => {
@@ -194,9 +195,9 @@ describe("MatchDetail", () => {
         onPublishResult={vi.fn()}
       />,
     );
-    expect(
-      screen.queryByRole("button", { name: "Reveal Prediction" }),
-    ).not.toBeInTheDocument();
+    // Button is present but aria-disabled while the result is not yet published
+    const btn = screen.getByRole("button", { name: "Reveal prediction" });
+    expect(btn).toHaveAttribute("aria-disabled", "true");
   });
 
   it("does not offer the prediction/reveal actions while disconnected, even mid-match", () => {
@@ -222,8 +223,9 @@ describe("MatchDetail", () => {
         onPublishResult={vi.fn()}
       />,
     );
+    // No reveal button when wallet is disconnected — reconnect prompt shown instead
     expect(
-      screen.queryByRole("button", { name: "Reveal Prediction" }),
+      screen.queryByRole("button", { name: "Reveal prediction" }),
     ).not.toBeInTheDocument();
   });
 
@@ -414,7 +416,7 @@ describe("MatchDetail", () => {
       />,
     );
     expect(
-      screen.queryByRole("button", { name: "Reveal Prediction" }),
+      screen.queryByRole("button", { name: "Reveal prediction" }),
     ).not.toBeInTheDocument();
   });
 
@@ -441,9 +443,10 @@ describe("MatchDetail", () => {
         onPublishResult={vi.fn()}
       />,
     );
+    // Button is present but aria-disabled — can't reveal without local data
     expect(
-      screen.queryByRole("button", { name: "Reveal Prediction" }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: "Reveal prediction" }),
+    ).toHaveAttribute("aria-disabled", "true");
     expect(
       screen.getByText(/reveal data not found in this browser/i),
     ).toBeInTheDocument();
@@ -607,7 +610,7 @@ describe("MatchDetail", () => {
         onPublishResult={vi.fn()}
       />,
     );
-    await user.click(screen.getByRole("button", { name: "Reveal Prediction" }));
+    await user.click(screen.getByRole("button", { name: "Reveal prediction" }));
     await user.click(screen.getByRole("button", { name: "Confirm Reveal" }));
 
     // The transaction is unresolved: Confirm Reveal and Cancel are disabled

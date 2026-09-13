@@ -15,6 +15,20 @@
   --color-danger: #f87171;
   --color-danger-bg: rgb(248 113 113 / 0.12);
   --focus-ring: 3px solid #ef7086;
+
+  /* Teal — public/on-chain data */
+  --color-teal-text: #2dd4bf;
+  --color-teal-bg: rgb(45 212 191 / 0.10);
+  --color-teal-border: rgb(45 212 191 / 0.30);
+
+  /* Violet — private/local data */
+  --color-violet-text: #a78bfa;
+  --color-violet-bg: rgb(167 139 250 / 0.10);
+  --color-violet-border: rgb(167 139 250 / 0.30);
+
+  /* Timeline node sizes */
+  --timeline-node-size: 24px;
+  --timeline-line-width: 2px;
 }
 
 * {
@@ -156,29 +170,90 @@ button:not(.match-list-select):not(.key-input-toggle):hover:not(:disabled) {
   width: 100%;
 }
 
+/* ── Match state timeline — connected dots ────────────────────────────────── */
+
 .match-state-timeline {
   display: flex;
-  gap: 0.5rem;
+  align-items: center;
   list-style: none;
   padding: 0;
-  margin: 1rem 0;
+  margin: 1.25rem 0;
+  gap: 0;
 }
 
-.match-state-timeline-node {
+/* Each step takes equal space; the connector line is a flex child between nodes */
+.match-state-timeline-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.375rem;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+/* Horizontal connector line between steps */
+.match-state-timeline-line {
   flex: 1;
-  text-align: center;
-  padding: 0.5rem;
-  border: 1px solid var(--color-border);
-  border-radius: 0.375rem;
+  height: var(--timeline-line-width);
+  background: var(--color-border);
+  margin-bottom: 1.25rem; /* aligns with dot vertical center */
+  transition: background 0.2s;
+}
+
+.match-state-timeline-line.completed {
+  background: var(--color-accent-text);
+}
+
+/* The dot */
+.match-state-timeline-dot {
+  width: var(--timeline-node-size);
+  height: var(--timeline-node-size);
+  border-radius: 50%;
+  border: var(--timeline-line-width) solid var(--color-border);
+  background: var(--color-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+/* Past step — check mark, gray */
+.match-state-timeline-step.past .match-state-timeline-dot {
+  border-color: var(--color-text-muted);
+  background: var(--color-surface-alt);
   color: var(--color-text-muted);
+}
+
+/* Current/active step — accent filled */
+.match-state-timeline-step.active .match-state-timeline-dot {
+  border-color: var(--color-accent-text);
+  background: var(--color-accent-text);
+  color: var(--color-bg);
+}
+
+/* Future step — outlined gray */
+.match-state-timeline-step.future .match-state-timeline-dot {
+  border-color: var(--color-border);
   background: var(--color-surface);
 }
 
-.match-state-timeline-node.active {
-  border-color: var(--color-accent-text);
+/* Label under the dot */
+.match-state-timeline-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.match-state-timeline-step.active .match-state-timeline-label {
   color: var(--color-accent-text);
-  font-weight: 600;
-  background: var(--color-surface-alt);
+  font-weight: 700;
+}
+
+.match-state-timeline-step.past .match-state-timeline-label {
+  color: var(--color-text-muted);
 }
 
 .match-info-card {
@@ -313,6 +388,8 @@ button:not(.match-list-select):not(.key-input-toggle):hover:not(:disabled) {
   user-select: none;
 }
 
+/* ── Privacy panel — stage-aware with teal/violet split ───────────────────── */
+
 .privacy-panel {
   border: 1px solid var(--color-border);
   border-radius: 0.5rem;
@@ -326,23 +403,82 @@ button:not(.match-list-select):not(.key-input-toggle):hover:not(:disabled) {
   align-items: center;
   gap: 0.375rem;
   margin-top: 0;
+  font-size: 0.9375rem;
+}
+
+/* Stage note — single line that changes per lifecycle stage */
+.privacy-stage-note {
+  font-size: 0.875rem;
+  margin: 0 0 0.875rem;
+  color: var(--color-text-muted);
+  font-style: italic;
 }
 
 .privacy-panel-columns {
   display: flex;
-  gap: 1.5rem;
+  gap: 0.75rem;
   flex-wrap: wrap;
 }
 
 .privacy-panel-columns section {
   flex: 1;
   min-width: 10rem;
+  border-radius: 0.375rem;
+  padding: 0.625rem 0.75rem;
+}
+
+/* Public / on-chain tile — teal */
+.privacy-panel-columns section:first-child {
+  background: var(--color-teal-bg);
+  border: 1px solid var(--color-teal-border);
+}
+
+.privacy-panel-columns section:first-child h3 {
+  color: var(--color-teal-text);
+}
+
+.privacy-panel-columns section:first-child li {
+  color: var(--color-teal-text);
+}
+
+/* Private / local tile — violet */
+.privacy-panel-columns section:last-child {
+  background: var(--color-violet-bg);
+  border: 1px solid var(--color-violet-border);
+}
+
+.privacy-panel-columns section:last-child h3 {
+  color: var(--color-violet-text);
+}
+
+.privacy-panel-columns section:last-child li {
+  color: var(--color-violet-text);
+}
+
+.privacy-panel-columns h3 {
+  margin: 0 0 0.375rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.privacy-panel-columns ul {
+  margin: 0;
+  padding: 0 0 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.privacy-panel-columns li {
+  font-size: 0.8125rem;
+  line-height: 1.4;
 }
 
 .privacy-panel-limitation {
   color: var(--color-text-muted);
-  font-size: 0.875rem;
-  margin-bottom: 0;
+  font-size: 0.8125rem;
+  margin: 0.75rem 0 0;
 }
 
 .transaction-status {
@@ -607,12 +743,53 @@ button:not(.match-list-select):not(.key-input-toggle):hover:not(:disabled) {
   font-size: 0.85em;
 }
 
+/* ── Match summary row — condensed team + deadline under tracker ──────────── */
+
+.match-summary-row {
+  margin: 0.25rem 0 0.75rem;
+}
+
+.match-summary-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin: 0.25rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
 /* ── Reveal action wrapper ────────────────────────────────────────────────── */
 
 .reveal-action {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+/* aria-disabled buttons — visible but inactive; uses opacity rather than
+   native disabled so the element stays in tab order and is announced by AT */
+button[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+button[aria-disabled="true"]:hover {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+/* Commitment chip — pill showing the truncated hash once submitted */
+.commitment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
 }
 
 /* ── StatusCard ───────────────────────────────────────────────────────────── */
@@ -876,13 +1053,34 @@ button:not(.match-list-select):not(.key-input-toggle):hover:not(:disabled) {
 /* ── Mobile / responsive ──────────────────────────────────────────────────── */
 
 @media (max-width: 480px) {
+  /* Vertical stepper on narrow screens */
   .match-state-timeline {
-    gap: 0.25rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    margin: 1rem 0;
   }
 
-  .match-state-timeline-node {
-    font-size: 0.75rem;
-    padding: 0.375rem 0.25rem;
+  .match-state-timeline-step {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 0.625rem;
+  }
+
+  .match-state-timeline-label {
+    padding-top: 0.2rem;
+    white-space: normal;
+    text-align: left;
+    font-size: 0.8125rem;
+  }
+
+  /* Vertical connector line between steps */
+  .match-state-timeline-line {
+    width: var(--timeline-line-width);
+    height: 1.25rem;
+    flex: none;
+    margin-bottom: 0;
+    margin-left: calc(var(--timeline-node-size) / 2 - var(--timeline-line-width) / 2);
   }
 
   .prediction-selector-options {
@@ -904,7 +1102,7 @@ button:not(.match-list-select):not(.key-input-toggle):hover:not(:disabled) {
 
   .privacy-panel-columns {
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.5rem;
   }
 
   .score-reveal {

@@ -59,6 +59,23 @@ function privacyStageFor(
   return "before-commitment";
 }
 
+/**
+ * Returns the tooltip for the reveal button when it is locked.
+ * Returns null when the button should be fully active (no tooltip needed).
+ */
+function revealButtonTooltip(
+  matchState: MatchState,
+  hasLocalPrediction: boolean,
+): string | null {
+  if (matchState === MatchState.CLOSED) {
+    return "Waiting for the organizer to publish the result";
+  }
+  if (matchState === MatchState.RESULT_PUBLISHED && !hasLocalPrediction) {
+    return "Reveal data not found — the original prediction and salt are required";
+  }
+  return null;
+}
+
 export function MatchDetail({
   match,
   predictionStatus,
@@ -152,14 +169,53 @@ export function MatchDetail({
     setRevealOpen(false);
   }
 
+  // Reveal button state — shown for owner once committed, locked until
+  // result is published and local data is available.
+  const showRevealButton =
+    !isOrganizer &&
+    isOwner &&
+    predictionState === PredictionState.COMMITTED &&
+    walletConnected;
+
+  const revealTooltip = showRevealButton
+    ? revealButtonTooltip(match.matchState, hasLocalPrediction)
+    : null;
+
+  const revealButtonActive =
+    showRevealButton &&
+    match.matchState === MatchState.RESULT_PUBLISHED &&
+    hasLocalPrediction;
+
+  // Reconnect prompt — shown separately when wallet is disconnected but
+  // the owner has a committed prediction and the result is already out.
+  const showReconnectPrompt =
+    !isOrganizer &&
+    isOwner &&
+    predictionState === PredictionState.COMMITTED &&
+    !walletConnected &&
+    match.matchState === MatchState.RESULT_PUBLISHED;
+
   return (
     <div className="match-detail">
-      <h1 className="match-detail-heading">
-        {match.teamA} <span className="match-detail-vs">vs</span> {match.teamB}
-      </h1>
-
+      {/* ── Lifecycle tracker — leads the screen (Version B) ── */}
       <MatchStateTimeline current={match.matchState} />
 
+      {/* ── Condensed match summary row ── */}
+      <div className="match-summary-row">
+        <h1 className="match-detail-heading">
+          {match.teamA} <span className="match-detail-vs">vs</span>{" "}
+          {match.teamB}
+        </h1>
+        <p className="match-summary-meta">
+          <Clock size={13} aria-hidden="true" />
+          {formatDeadline(match.deadline)}
+          <span className="status-badge">
+            {matchStateLabel(match.matchState)}
+          </span>
+        </p>
+      </div>
+
+      {/* ── Match info — compact, collapses commitment to a chip ── */}
       <dl className="match-info-card">
         <div>
           <dt>Match ID</dt>
@@ -167,37 +223,17 @@ export function MatchDetail({
             <code>{truncateHex(bytesToHex(match.matchId))}</code>
           </dd>
         </div>
-        <div>
-          <dt>Deadline</dt>
-          <dd>{formatDeadline(match.deadline)}</dd>
-        </div>
-        <div>
-          <dt>Status</dt>
-          <dd>
-            <span className="status-badge">
-              {matchStateLabel(match.matchState)}
-            </span>
-          </dd>
-        </div>
         {predictionStatus?.commitment && (
           <div>
             <dt>{isOwner ? "Your commitment" : "Commitment"}</dt>
             <dd>
-              <code>
+              <span className="commitment-chip">
                 {truncateHex(bytesToHex(predictionStatus.commitment))}
-              </code>
+              </span>
             </dd>
           </div>
         )}
       </dl>
-
-      {isOrganizer && (
-        <OrganizerControls
-          match={match}
-          onCloseMatch={onCloseMatch}
-          onPublishResult={onPublishResult}
-        />
-      )}
 
       {/* ── Result published banner ── */}
       {match.matchState === MatchState.RESULT_PUBLISHED &&
@@ -209,10 +245,18 @@ export function MatchDetail({
           />
         )}
 
-      {/* ── Participant-only section: hidden when the connected identity is the organizer ── */}
+      {isOrganizer && (
+        <OrganizerControls
+          match={match}
+          onCloseMatch={onCloseMatch}
+          onPublishResult={onPublishResult}
+        />
+      )}
+
+      {/* ── Participant-only section ── */}
       {!isOrganizer && (
         <>
-          {/* ── OPEN state: no prediction yet ── */}
+          {/* ── OPEN: no prediction yet ── */}
           {match.matchState === MatchState.OPEN &&
             predictionState === PredictionState.NO_COMMITMENT &&
             (!walletConnected ? (
@@ -272,49 +316,51 @@ export function MatchDetail({
               />
             )}
 
-          {/* ── Owner committed, match closed ── */}
-          {predictionState === PredictionState.COMMITTED &&
-            isOwner &&
-            match.matchState === MatchState.CLOSED && (
-              <StatusCard
-                icon={<Clock size={20} />}
-                title="Match closed — waiting for result"
-                body="Your prediction is safe. You'll be able to reveal it once the result is published."
-                variant="info"
-              />
-            )}
+          {/* ── Reconnect prompt — disconnected owner, result published ── */}
+          {showReconnectPrompt && (
+            <StatusCard
+              icon={<Wallet size={20} />}
+              title="Reconnect your wallet to reveal"
+              body="The result is published. Reconnect to reveal your prediction and see your score."
+              variant="info"
+            />
+          )}
 
-          {/* ── Owner committed, result published — reveal action ── */}
-          {predictionState === PredictionState.COMMITTED &&
-            isOwner &&
-            match.matchState === MatchState.RESULT_PUBLISHED &&
-            (!walletConnected ? (
-              <StatusCard
-                icon={<Wallet size={20} />}
-                title="Reconnect your wallet to reveal"
-                body="The result is published. Reconnect to reveal your prediction and see your score."
-                variant="info"
-              />
-            ) : hasLocalPrediction ? (
-              <div className="reveal-action">
-                <StatusCard
-                  icon={<Eye size={20} />}
-                  title="Ready to reveal"
-                  body="The result is published. Reveal your prediction to verify it on-chain and claim your score."
-                  variant="info"
-                />
-                <button type="button" onClick={() => setRevealOpen(true)}>
-                  Reveal Prediction
-                </button>
-              </div>
-            ) : (
-              <StatusCard
-                icon={<AlertTriangle size={20} />}
-                title="Reveal data not found in this browser"
-                body="The original prediction and salt are not available here, so this prediction cannot be revealed from this device."
-                variant="warning"
-              />
-            ))}
+          {/* ── Reveal button — present for owner from COMMITTED onward,
+                locked (aria-disabled) until result is published + local data
+                available, active only when both conditions are met ── */}
+          {showRevealButton && (
+            <div className="reveal-action">
+              {match.matchState === MatchState.RESULT_PUBLISHED &&
+                hasLocalPrediction && (
+                  <StatusCard
+                    icon={<Eye size={20} />}
+                    title="Ready to reveal"
+                    body="The result is published. Reveal your prediction to verify it on-chain and claim your score."
+                    variant="info"
+                  />
+                )}
+              {match.matchState === MatchState.RESULT_PUBLISHED &&
+                !hasLocalPrediction && (
+                  <StatusCard
+                    icon={<AlertTriangle size={20} />}
+                    title="Reveal data not found in this browser"
+                    body="The original prediction and salt are not available here, so this prediction cannot be revealed from this device."
+                    variant="warning"
+                  />
+                )}
+              <button
+                type="button"
+                aria-disabled={!revealButtonActive ? "true" : undefined}
+                title={revealTooltip ?? undefined}
+                onClick={
+                  revealButtonActive ? () => setRevealOpen(true) : undefined
+                }
+              >
+                Reveal prediction
+              </button>
+            </div>
+          )}
 
           {/* ── Revealed: score summary ── */}
           {predictionState === PredictionState.REVEALED &&
