@@ -191,7 +191,7 @@ NO_COMMITMENT → COMMITTED → REVEALED
 - [x] Premium UI/UX transformation — editorial match scoreline with team crests, burgundy design system, Inter variable font, collapsible How It Works, emotional score reveal, organizer clipboard copy buttons, responsive/mobile pass
 - [x] Live deploy/commit/close/publish/reveal run on Midnight Preview testnet (incorrect-prediction / 0-point branch)
 - [x] Live run of the correct-prediction (3-point) branch on testnet
-- [ ] Demo video and final submission materials
+- [x] Demo video and final submission materials - wave 1(https://youtu.be/TTJZqf7lSuE)
 
 ## Buildathon roadmap
 
