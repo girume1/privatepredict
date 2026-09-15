@@ -43,6 +43,11 @@ export function RevealPredictionDialog({
         Confirming will permanently make your original prediction and salt
         publicly visible on-chain. This cannot be undone.
       </p>
+      <ul>
+        <li>Your prediction becomes publicly visible.</li>
+        <li>The salt used to create your commitment is revealed.</li>
+        <li>You receive your score based on the published result.</li>
+      </ul>
       <TransactionStatus
         phase={txPhase}
         txHash={txHash}

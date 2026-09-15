@@ -17,6 +17,12 @@ interface CommitPredictionDialogProps {
 
 const TITLE_ID = "commit-prediction-dialog-title";
 
+const OUTCOME_LABELS: Record<Outcome, string> = {
+  HOME: "Home",
+  DRAW: "Draw",
+  AWAY: "Away",
+};
+
 export function CommitPredictionDialog({
   outcome,
   open,
@@ -43,9 +49,15 @@ export function CommitPredictionDialog({
       labelledBy={TITLE_ID}
     >
       <h2 id={TITLE_ID}>
-        <LockKeyhole aria-hidden="true" size={18} /> Commit prediction:{" "}
-        {outcome}
+        <LockKeyhole aria-hidden="true" size={18} />
+        Commit prediction: {outcome}
       </h2>
+
+      {/* Outcome pill */}
+      <div>
+        <span className="commit-outcome-pill">{OUTCOME_LABELS[outcome]}</span>
+      </div>
+
       <ul>
         <li>A commitment will be submitted to the blockchain.</li>
         <li>
@@ -57,6 +69,7 @@ export function CommitPredictionDialog({
           this device — reveal later from the same browser and device.
         </li>
       </ul>
+
       <label htmlFor="commit-acknowledge">
         <input
           id="commit-acknowledge"
@@ -69,11 +82,13 @@ export function CommitPredictionDialog({
         I understand I must reveal from the same browser and device where I
         submitted.
       </label>
+
       <TransactionStatus
         phase={txPhase}
         txHash={txHash}
         errorMessage={errorMessage}
       />
+
       <div className="dialog-actions">
         <button
           type="button"

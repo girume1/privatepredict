@@ -314,7 +314,7 @@ describe("MatchDetail", () => {
       />,
     );
     await user.click(screen.getByRole("radio", { name: "HOME" }));
-    await user.click(screen.getByRole("button", { name: "Submit Prediction" }));
+    await user.click(screen.getByRole("button", { name: "Commit prediction" }));
     expect(
       screen.getByRole("dialog", { name: /commit prediction: HOME/i }),
     ).toBeInTheDocument();
@@ -530,7 +530,7 @@ describe("MatchDetail", () => {
       />,
     );
     await user.click(screen.getByRole("radio", { name: "HOME" }));
-    await user.click(screen.getByRole("button", { name: "Submit Prediction" }));
+    await user.click(screen.getByRole("button", { name: "Commit prediction" }));
     await user.click(screen.getByRole("checkbox"));
     await user.click(screen.getByRole("button", { name: "Confirm" }));
 
@@ -571,7 +571,7 @@ describe("MatchDetail", () => {
       />,
     );
     await user.click(screen.getByRole("radio", { name: "HOME" }));
-    await user.click(screen.getByRole("button", { name: "Submit Prediction" }));
+    await user.click(screen.getByRole("button", { name: "Commit prediction" }));
     await user.click(screen.getByRole("checkbox"));
     await user.click(screen.getByRole("button", { name: "Confirm" }));
 
@@ -659,7 +659,7 @@ describe("MatchDetail", () => {
       />,
     );
     await user.click(screen.getByRole("radio", { name: "HOME" }));
-    await user.click(screen.getByRole("button", { name: "Submit Prediction" }));
+    await user.click(screen.getByRole("button", { name: "Commit prediction" }));
     await user.click(screen.getByRole("checkbox"));
 
     const confirm = screen.getByRole("button", { name: "Confirm" });
@@ -695,7 +695,7 @@ describe("MatchDetail", () => {
       />,
     );
     await user.click(screen.getByRole("radio", { name: "HOME" }));
-    await user.click(screen.getByRole("button", { name: "Submit Prediction" }));
+    await user.click(screen.getByRole("button", { name: "Commit prediction" }));
     await user.click(screen.getByRole("checkbox"));
 
     await user.click(screen.getByRole("button", { name: "Confirm" }));

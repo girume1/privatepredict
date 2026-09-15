@@ -1,11 +1,31 @@
-import { useState } from "react";
-import { LockKeyhole, CircleAlert, CircleCheck } from "lucide-react";
+import { useState, useCallback } from "react";
+import {
+  LockKeyhole,
+  TriangleAlert,
+  CheckCircle,
+  Copy,
+  Check,
+} from "lucide-react";
 import { generateSecretKey } from "@privatepredict/api";
 import { connectAndDeploy } from "./wallet/connect.js";
 import { bytesToHex } from "./hex.js";
 import { Brand } from "./components/Brand.js";
 
 type DeployPhase = "idle" | "connecting" | "success" | "error";
+
+/**
+ * Copies text to the clipboard and returns a "just copied" signal for 2s.
+ */
+function useCopy(): [boolean, (text: string) => void] {
+  const [copied, setCopied] = useState(false);
+  const copy = useCallback((text: string) => {
+    void navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, []);
+  return [copied, copy];
+}
 
 /**
  * Organizer-only deployment tool — a separate entry point (deploy.html),
@@ -25,6 +45,10 @@ export function DeployApp() {
     walletAddress: string;
     contractAddress: string;
   } | null>(null);
+
+  const [keyCopied, copyKey] = useCopy();
+  const [contractCopied, copyContract] = useCopy();
+  const [resultKeyCopied, copyResultKey] = useCopy();
 
   const canDeploy =
     teamA.trim() !== "" &&
@@ -59,15 +83,18 @@ export function DeployApp() {
     }
   }
 
+  const orgKeyHex = bytesToHex(organizerSecretKey);
+
   return (
     <main className="deploy-app">
       <Brand />
-      <h1>Deploy a PredictionBoard match</h1>
-      <p className="deploy-callout">
-        <CircleAlert aria-hidden="true" size={18} /> Organizer tooling only —
-        not part of the participant app. One deployment represents exactly one
-        match.
-      </p>
+      <h1>Deploy a match</h1>
+
+      <div className="deploy-callout">
+        <TriangleAlert aria-hidden="true" size={16} />
+        Organizer tooling only — not part of the participant app. One deployment
+        represents exactly one match.
+      </div>
 
       {phase !== "success" && (
         <>
@@ -78,6 +105,7 @@ export function DeployApp() {
               value={teamA}
               onChange={(e) => setTeamA(e.target.value)}
               disabled={phase === "connecting"}
+              placeholder="e.g. Arsenal"
             />
           </div>
           <div className="deploy-field">
@@ -87,6 +115,7 @@ export function DeployApp() {
               value={teamB}
               onChange={(e) => setTeamB(e.target.value)}
               disabled={phase === "connecting"}
+              placeholder="e.g. Chelsea"
             />
           </div>
           <div className="deploy-field">
@@ -102,19 +131,35 @@ export function DeployApp() {
 
           <div className="deploy-generated">
             <p>
-              <LockKeyhole aria-hidden="true" size={16} /> Generated match ID:{" "}
-              <code>{bytesToHex(matchId)}</code>
+              <LockKeyhole aria-hidden="true" size={14} />
+              Generated match ID: <code>{bytesToHex(matchId)}</code>
             </p>
-            <p>
-              <LockKeyhole aria-hidden="true" size={16} /> Generated organizer
-              secret key: <code>{bytesToHex(organizerSecretKey)}</code>
-            </p>
-            <p className="deploy-callout">
-              Save this secret key now. It lives only in this browser tab's
-              memory — it is never sent anywhere, and it does not survive a page
-              reload. You will need it again to close the match and publish the
-              result later; without it, this deployment cannot be administered.
-            </p>
+            <div className="deploy-generated-key-row">
+              <p style={{ flex: 1, margin: 0 }}>
+                <LockKeyhole aria-hidden="true" size={14} />
+                Generated organizer secret key: <code>{orgKeyHex}</code>
+              </p>
+              <button
+                type="button"
+                className="copy-btn"
+                onClick={() => copyKey(orgKeyHex)}
+                aria-label="Copy organizer secret key"
+                title={keyCopied ? "Copied!" : "Copy to clipboard"}
+              >
+                {keyCopied ? (
+                  <Check aria-hidden="true" size={14} />
+                ) : (
+                  <Copy aria-hidden="true" size={14} />
+                )}
+                {keyCopied ? "Copied" : "Copy key"}
+              </button>
+            </div>
+            <div className="deploy-callout" style={{ marginTop: "0.75rem" }}>
+              <TriangleAlert aria-hidden="true" size={14} />
+              Save this secret key now. It lives only in this browser tab&apos;s
+              memory and does not survive a page reload. You need it to close
+              the match and publish the result.
+            </div>
           </div>
 
           <button type="button" onClick={handleDeploy} disabled={!canDeploy}>
@@ -124,8 +169,12 @@ export function DeployApp() {
           </button>
 
           {phase === "error" && error && (
-            <p role="alert" className="deploy-error">
-              <CircleAlert aria-hidden="true" size={18} /> {error}
+            <p
+              role="alert"
+              className="deploy-error"
+              style={{ marginTop: "0.75rem" }}
+            >
+              <TriangleAlert aria-hidden="true" size={16} /> {error}
             </p>
           )}
         </>
@@ -134,17 +183,55 @@ export function DeployApp() {
       {phase === "success" && result && (
         <div className="deploy-success">
           <p>
-            <CircleCheck aria-hidden="true" size={18} /> Match deployed.
+            <CheckCircle aria-hidden="true" size={16} />
+            Match deployed successfully
           </p>
-          <p>Save both of these now — neither is recoverable if lost:</p>
+          <p
+            style={{
+              color: "var(--text-muted)",
+              fontWeight: 400,
+              fontSize: "0.875rem",
+              marginBottom: "0.5rem",
+            }}
+          >
+            Save both of these now — neither is recoverable if lost:
+          </p>
           <dl>
             <dt>Contract address (set as VITE_PREDICTION_BOARD_ADDRESS)</dt>
-            <dd>
+            <dd className="deploy-success-copy-row">
               <code>{result.contractAddress}</code>
+              <button
+                type="button"
+                className="copy-btn"
+                onClick={() => copyContract(result.contractAddress)}
+                aria-label="Copy contract address"
+                title={contractCopied ? "Copied!" : "Copy to clipboard"}
+              >
+                {contractCopied ? (
+                  <Check aria-hidden="true" size={14} />
+                ) : (
+                  <Copy aria-hidden="true" size={14} />
+                )}
+                {contractCopied ? "Copied" : "Copy"}
+              </button>
             </dd>
             <dt>Organizer secret key</dt>
-            <dd>
-              <code>{bytesToHex(organizerSecretKey)}</code>
+            <dd className="deploy-success-copy-row">
+              <code>{orgKeyHex}</code>
+              <button
+                type="button"
+                className="copy-btn"
+                onClick={() => copyResultKey(orgKeyHex)}
+                aria-label="Copy organizer secret key"
+                title={resultKeyCopied ? "Copied!" : "Copy to clipboard"}
+              >
+                {resultKeyCopied ? (
+                  <Check aria-hidden="true" size={14} />
+                ) : (
+                  <Copy aria-hidden="true" size={14} />
+                )}
+                {resultKeyCopied ? "Copied" : "Copy"}
+              </button>
             </dd>
           </dl>
         </div>

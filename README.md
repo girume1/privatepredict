@@ -75,7 +75,7 @@ Three different levels of confidence apply to different parts of this project. D
 |---|---|
 | Contract lifecycle, organizer authorization, ownership checks, commitment verification | **Unit-tested** — `contract/test/prediction-board.test.ts`, 15/15 passing against the real compiled contract |
 | API primitives (commitment/outcome encoding, private-state handling) | **Unit-tested** — `api/test/*.test.ts`, 12/12 passing |
-| Frontend components and flows | **Unit-tested** — `web/src/**/*.test.{ts,tsx}`, 150/150 passing (components, flows, persistence, ownership gating, accessibility) |
+| Frontend components and flows | **Unit-tested** — `web/src/**/*.test.{ts,tsx}`, 161/161 passing (components, flows, persistence, ownership gating, accessibility) |
 | Deploy → commit `HOME` → close → publish `DRAW` → reveal → **0 points** | **Verified live** on Midnight Preview testnet, via a real Lace wallet and a local Docker proof server. See `DEPLOYMENT.md`'s "Testnet lessons learned" for exactly what that run surfaced. |
 | Deploy → commit → close → publish the *same* outcome → reveal → **3 points** | **Verified live** on Midnight Preview testnet. |
 | `localStorage`-persisted identity/pending prediction surviving a reconnect or reload | **Verified live** on Midnight Preview testnet. The two-tab organizer workaround is no longer needed. |
@@ -93,7 +93,7 @@ Three different levels of confidence apply to different parts of this project. D
    ```bash
    cd contract && npm test   # 15/15 — lifecycle, organizer auth, ownership, scoring
    cd ../api && npm test     # 12/12 — commitment/outcome/private-state primitives
-   cd ../web && npm test     # 150/150 — components, flows, persistence, ownership gating, accessibility
+   cd ../web && npm test     # 161/161 — components, flows, persistence, ownership gating, accessibility
    ```
 3. **Read the contract directly** — `contract/src/prediction-board.compact` is short and readable. The privacy-relevant circuits are `submitPrediction` (commitment-only, no salt) and `revealPrediction` (commitment + ownership verification).
 4. **See it run against real Midnight testnet infrastructure**: see `DEPLOYMENT.md` for exactly what has been run live, with real detail on what broke and how it was fixed.
@@ -181,13 +181,14 @@ NO_COMMITMENT → COMMITTED → REVEALED
 - [x] Prediction reveal, commitment verification, and mock-point scoring
 - [x] Contract simulation and test cases (15/15 passing)
 - [x] TypeScript integration layer (`api/`, 12/12 tests passing)
-- [x] React interface (`web/`, 150/150 tests passing)
+- [x] React interface (`web/`, 161/161 tests passing)
 - [x] Privacy Panel showing public versus private data at each lifecycle stage
 - [x] Ownership-scoped participant UI — personal copy and reveal actions appear only for the participant who owns the match's single commitment slot; any other viewer sees neutral copy, never another user's data framed as theirs
 - [x] An off-chain, local match list so a participant can browse and switch between several independently-deployed matches, with no contract change (`web/src/matchRegistry.ts`, `MatchList.tsx`)
 - [x] Production-bundle hardening — browser shims for Node `assert` and `isomorphic-ws` so codec assertions and indexer live updates keep working in built output (`web/src/shims/`)
 - [x] Accessibility pass — WCAG AA contrast, keyboard navigation, ARIA landmarks, native radio inputs, live regions, screen reader announcements
 - [x] Participant key input — returning participants can restore their identity from a backed-up key without losing their pending prediction
+- [x] Premium UI/UX transformation — editorial match scoreline with team crests, burgundy design system, Inter variable font, collapsible How It Works, emotional score reveal, organizer clipboard copy buttons, responsive/mobile pass
 - [x] Live deploy/commit/close/publish/reveal run on Midnight Preview testnet (incorrect-prediction / 0-point branch)
 - [x] Live run of the correct-prediction (3-point) branch on testnet
 - [ ] Demo video and final submission materials
@@ -383,7 +384,7 @@ npm run lint
 
 # Web
 cd ../web
-npm test           # 150/150
+npm test           # 161/161
 npm run typecheck
 npm run lint
 ```

@@ -1,8 +1,10 @@
-import { ShieldCheck } from "lucide-react";
+import { LockKeyhole } from "lucide-react";
+import { MatchState } from "@privatepredict/contract";
 import type { PrivacyStage } from "../types.js";
 
 interface PrivacyPanelProps {
   predictionState: PrivacyStage;
+  lifecycleStage?: MatchState;
   /**
    * When false, the on-chain slot is held by another participant, so the
    * "private" column must not claim anything of the viewer's is stored.
@@ -17,8 +19,14 @@ interface PrivacyPanelProps {
 const STAGE_NOTE: Record<PrivacyStage, string> = {
   "before-commitment":
     "Your pick and salt stay in this browser until you reveal.",
-  committed: "Your commitment is locked on-chain. The result is not yet known.",
-  revealed: "Reveal proves your commitment matched your pick.",
+  committed: "Result not yet published. Your commitment is locked on-chain.",
+  revealed: "Reveal to prove your commitment matched your pick.",
+};
+
+const LIFECYCLE_NOTE: Partial<Record<MatchState, string>> = {
+  [MatchState.OPEN]: STAGE_NOTE["before-commitment"],
+  [MatchState.CLOSED]: STAGE_NOTE.committed,
+  [MatchState.RESULT_PUBLISHED]: STAGE_NOTE.revealed,
 };
 
 const OWNER_CONTENT: Record<
@@ -69,6 +77,7 @@ const BEFORE_CONTENT = {
 /** Purely presentational — no business logic, no API calls. */
 export function PrivacyPanel({
   predictionState,
+  lifecycleStage,
   ownsPrediction = true,
 }: PrivacyPanelProps) {
   // "before-commitment" means the slot is still free — same panel for all.
@@ -87,17 +96,21 @@ export function PrivacyPanel({
       : predictionState
     : "another participant's slot";
 
-  const stageNote = STAGE_NOTE[predictionState];
+  const stageNote = lifecycleStage
+    ? (LIFECYCLE_NOTE[lifecycleStage] ?? STAGE_NOTE[predictionState])
+    : STAGE_NOTE[predictionState];
 
   return (
     <div className="privacy-panel">
       <h2>
-        <ShieldCheck aria-hidden="true" size={18} /> Privacy
+        <LockKeyhole aria-hidden="true" size={13} />
+        Privacy status
       </h2>
       <p className="privacy-stage-note">{stageNote}</p>
       <div className="privacy-panel-columns">
         {/* Public tile — teal (section:first-child in CSS) */}
         <section
+          className="privacy-panel-section privacy-panel-section--public"
           role="region"
           aria-label={`Public information — ${stageLabel}`}
         >
@@ -110,6 +123,7 @@ export function PrivacyPanel({
         </section>
         {/* Private tile — violet (section:last-child in CSS) */}
         <section
+          className="privacy-panel-section privacy-panel-section--private"
           role="region"
           aria-label={`Private information — ${stageLabel}`}
         >

@@ -3,7 +3,6 @@ import { MatchState, PredictionState } from "@privatepredict/contract";
 import {
   Clock,
   LockKeyhole,
-  CheckCircle2,
   Eye,
   AlertTriangle,
   Wallet,
@@ -51,6 +50,17 @@ function formatDeadline(ms: number): string {
   return new Date(ms).toLocaleString();
 }
 
+function formatCountdown(ms: number): string {
+  if (ms <= 0) return "Closed for submissions";
+  const totalMinutes = Math.floor(ms / 60_000);
+  const days = Math.floor(totalMinutes / 1_440);
+  const hours = Math.floor((totalMinutes % 1_440) / 60);
+  const minutes = totalMinutes % 60;
+  if (days > 0) return `${days}d ${hours}h left`;
+  if (hours > 0) return `${hours}h ${minutes}m left`;
+  return `${Math.max(1, minutes)}m left`;
+}
+
 function privacyStageFor(
   predictionState: PredictionState | undefined,
 ): PrivacyStage {
@@ -74,6 +84,13 @@ function revealButtonTooltip(
     return "Reveal data not found — the original prediction and salt are required";
   }
   return null;
+}
+
+/** Map MatchState to a CSS modifier for the status badge. */
+function matchStateBadgeClass(state: MatchState): string {
+  if (state === MatchState.OPEN) return "status-badge status-badge-open";
+  if (state === MatchState.CLOSED) return "status-badge status-badge-closed";
+  return "status-badge status-badge-published";
 }
 
 export function MatchDetail({
@@ -121,9 +138,14 @@ export function MatchDetail({
 
   const deadline = match?.deadline;
   const [deadlinePassed, setDeadlinePassed] = useState(false);
+  const [countdown, setCountdown] = useState("");
   useEffect(() => {
     if (deadline === undefined) return;
-    const check = () => setDeadlinePassed(Date.now() >= deadline);
+    const check = () => {
+      const remaining = deadline - Date.now();
+      setDeadlinePassed(remaining <= 0);
+      setCountdown(formatCountdown(remaining));
+    };
     check();
     const interval = setInterval(check, 1000);
     return () => clearInterval(interval);
@@ -140,6 +162,7 @@ export function MatchDetail({
       <StatusCard
         icon={<Wallet size={20} />}
         title="Connect a wallet to load this match"
+        body="You'll need a Lace wallet funded on the Midnight Preview testnet, plus a local Docker proof server running."
         variant="muted"
       />
     );
@@ -175,6 +198,7 @@ export function MatchDetail({
     !isOrganizer &&
     isOwner &&
     predictionState === PredictionState.COMMITTED &&
+    match.matchState !== MatchState.OPEN &&
     walletConnected;
 
   const revealTooltip = showRevealButton
@@ -197,54 +221,84 @@ export function MatchDetail({
 
   return (
     <div className="match-detail">
-      {/* ── Lifecycle tracker — leads the screen (Version B) ── */}
+      {/* ── Lifecycle tracker ── */}
       <MatchStateTimeline current={match.matchState} />
 
-      {/* ── Condensed match summary row ── */}
-      <div className="match-summary-row">
-        <h1 className="match-detail-heading">
-          {match.teamA} <span className="match-detail-vs">vs</span>{" "}
-          {match.teamB}
-        </h1>
-        <p className="match-summary-meta">
-          <Clock size={13} aria-hidden="true" />
-          {formatDeadline(match.deadline)}
-          <span className="status-badge">
+      {/* ── Match header — editorial scoreline ── */}
+      <div className="match-header">
+        <div
+          className="match-scoreline"
+          aria-label={`${match.teamA} vs ${match.teamB}`}
+        >
+          <div className="match-team match-team--home">
+            <div className="match-team-crest" aria-hidden="true">
+              {match.teamA.charAt(0).toUpperCase()}
+            </div>
+            <span className="match-team-name">{match.teamA}</span>
+          </div>
+          <div className="match-vs-block" aria-hidden="true">
+            <span className="match-vs-label">VS</span>
+          </div>
+          <div className="match-team match-team--away">
+            <div className="match-team-crest" aria-hidden="true">
+              {match.teamB.charAt(0).toUpperCase()}
+            </div>
+            <span className="match-team-name">{match.teamB}</span>
+          </div>
+        </div>
+        <div className="match-header-meta">
+          <span className={matchStateBadgeClass(match.matchState)}>
+            <span className="status-badge-dot" aria-hidden="true" />
             {matchStateLabel(match.matchState)}
           </span>
-        </p>
+          <span className="match-header-meta-sep" aria-hidden="true" />
+          <Clock size={12} aria-hidden="true" />
+          <time
+            dateTime={new Date(match.deadline).toISOString()}
+            title={formatDeadline(match.deadline)}
+          >
+            {countdown}
+          </time>
+        </div>
       </div>
 
-      {/* ── Match info — compact, collapses commitment to a chip ── */}
-      <dl className="match-info-card">
-        <div>
-          <dt>Match ID</dt>
-          <dd>
-            <code>{truncateHex(bytesToHex(match.matchId))}</code>
-          </dd>
-        </div>
+      {/* ── Privacy context ── */}
+      <PrivacyPanel
+        lifecycleStage={match.matchState}
+        predictionState={privacyStageFor(predictionState)}
+        ownsPrediction={isOwner}
+      />
+
+      {/* ── Match info — commitment + match ID ── */}
+      <div className="match-meta-strip">
         {predictionStatus?.commitment && (
-          <div>
-            <dt>{isOwner ? "Your commitment" : "Commitment"}</dt>
-            <dd>
-              <span className="commitment-chip">
-                {truncateHex(bytesToHex(predictionStatus.commitment))}
-              </span>
-            </dd>
+          <div className="match-meta-item match-meta-item--commitment">
+            <span className="match-meta-label">
+              {isOwner ? "Your commitment" : "Commitment"}
+            </span>
+            <span className="commitment-chip">
+              {truncateHex(bytesToHex(predictionStatus.commitment))}
+            </span>
           </div>
         )}
-      </dl>
+        <div className="match-meta-item">
+          <span className="match-meta-label">Match ID</span>
+          <span className="commitment-chip commitment-chip--faint">
+            {truncateHex(bytesToHex(match.matchId))}
+          </span>
+        </div>
+      </div>
 
       {/* ── Result published banner ── */}
       {match.matchState === MatchState.RESULT_PUBLISHED &&
         match.matchResult && (
-          <StatusCard
-            icon={<CheckCircle2 size={20} />}
-            title={`Result: ${match.matchResult}`}
-            variant="info"
-          />
+          <div className="result-banner">
+            <span className="result-banner-label">Result</span>
+            <span className="result-banner-outcome">{match.matchResult}</span>
+          </div>
         )}
 
+      {/* ── Organizer section ── */}
       {isOrganizer && (
         <OrganizerControls
           match={match}
@@ -256,7 +310,7 @@ export function MatchDetail({
       {/* ── Participant-only section ── */}
       {!isOrganizer && (
         <>
-          {/* ── OPEN: no prediction yet ── */}
+          {/* OPEN: no prediction yet */}
           {match.matchState === MatchState.OPEN &&
             predictionState === PredictionState.NO_COMMITMENT &&
             (!walletConnected ? (
@@ -284,7 +338,7 @@ export function MatchDetail({
               </>
             ))}
 
-          {/* ── CLOSED: no prediction submitted ── */}
+          {/* CLOSED: no prediction submitted */}
           {match.matchState === MatchState.CLOSED &&
             predictionState === PredictionState.NO_COMMITMENT && (
               <StatusCard
@@ -294,29 +348,29 @@ export function MatchDetail({
               />
             )}
 
-          {/* ── Slot held by someone else ── */}
+          {/* Slot held by someone else */}
           {predictionState === PredictionState.COMMITTED && !isOwner && (
             <StatusCard
               icon={<ShieldOff size={20} />}
-              title="This match's prediction slot is held by another participant"
-              body="It cannot be submitted to or revealed from this browser."
+              title="Prediction slot already held"
+              body="This match's prediction slot is held by another participant. It cannot be submitted to or revealed from this browser."
               variant="muted"
             />
           )}
 
-          {/* ── Owner committed, awaiting result ── */}
+          {/* Owner committed, awaiting result */}
           {predictionState === PredictionState.COMMITTED &&
             isOwner &&
             match.matchState === MatchState.OPEN && (
               <StatusCard
                 icon={<LockKeyhole size={20} />}
-                title="Your prediction is committed"
+                title="Prediction locked privately"
                 body="Locked on-chain and private — awaiting the result. You can reveal once the organizer publishes it."
                 variant="success"
               />
             )}
 
-          {/* ── Reconnect prompt — disconnected owner, result published ── */}
+          {/* Reconnect prompt */}
           {showReconnectPrompt && (
             <StatusCard
               icon={<Wallet size={20} />}
@@ -326,9 +380,7 @@ export function MatchDetail({
             />
           )}
 
-          {/* ── Reveal button — present for owner from COMMITTED onward,
-                locked (aria-disabled) until result is published + local data
-                available, active only when both conditions are met ── */}
+          {/* Reveal button */}
           {showRevealButton && (
             <div className="reveal-action">
               {match.matchState === MatchState.RESULT_PUBLISHED &&
@@ -357,12 +409,13 @@ export function MatchDetail({
                   revealButtonActive ? () => setRevealOpen(true) : undefined
                 }
               >
+                <Eye size={16} aria-hidden="true" />
                 Reveal prediction
               </button>
             </div>
           )}
 
-          {/* ── Revealed: score summary ── */}
+          {/* Revealed: score summary */}
           {predictionState === PredictionState.REVEALED &&
             isOwner &&
             predictionStatus?.revealedPrediction &&
@@ -376,7 +429,7 @@ export function MatchDetail({
 
           {predictionState === PredictionState.REVEALED && !isOwner && (
             <StatusCard
-              icon={<CheckCircle2 size={20} />}
+              icon={<Eye size={20} />}
               title="This match has been revealed"
               body="The slot was revealed by its owner. The published result is shown above."
               variant="muted"
@@ -385,11 +438,7 @@ export function MatchDetail({
         </>
       )}
 
-      <PrivacyPanel
-        predictionState={privacyStageFor(predictionState)}
-        ownsPrediction={isOwner}
-      />
-
+      {/* ── Dialogs ── */}
       {pendingOutcome && (
         <CommitPredictionDialog
           outcome={pendingOutcome}

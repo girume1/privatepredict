@@ -7,7 +7,7 @@ describe("PredictionSelector", () => {
   it("disables submit until an outcome is selected", async () => {
     const user = userEvent.setup();
     render(<PredictionSelector onSubmit={vi.fn()} />);
-    const submit = screen.getByRole("button", { name: "Submit Prediction" });
+    const submit = screen.getByRole("button", { name: "Commit prediction" });
     expect(submit).toBeDisabled();
 
     await user.click(screen.getByRole("radio", { name: "HOME" }));
@@ -20,7 +20,7 @@ describe("PredictionSelector", () => {
     render(<PredictionSelector onSubmit={onSubmit} />);
 
     await user.click(screen.getByRole("radio", { name: "DRAW" }));
-    await user.click(screen.getByRole("button", { name: "Submit Prediction" }));
+    await user.click(screen.getByRole("button", { name: "Commit prediction" }));
 
     expect(onSubmit).toHaveBeenCalledWith("DRAW");
   });

@@ -36,7 +36,7 @@ describe("PrivacyPanel", () => {
   it("shows the correct stage note when revealed", () => {
     render(<PrivacyPanel predictionState="revealed" />);
     expect(
-      screen.getByText(/reveal proves your commitment matched your pick/i),
+      screen.getByText(/reveal to prove your commitment matched your pick/i),
     ).toBeInTheDocument();
   });
 

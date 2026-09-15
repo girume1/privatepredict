@@ -56,10 +56,10 @@ function AppContent() {
     setParticipantSecretKey(null);
   }
 
+  // ── Match list / home ──────────────────────────────────────────────────────
   if (!selectedAddress) {
     return (
       <main aria-label="Match list">
-        <Brand tagline />
         <MatchList
           matches={matches}
           onSelect={setSelectedAddress}
@@ -70,6 +70,7 @@ function AppContent() {
     );
   }
 
+  // ── Match detail ──────────────────────────────────────────────────────────
   const match: Match | null = derivedState
     ? {
         matchId: derivedState.matchId,
@@ -97,28 +98,37 @@ function AppContent() {
 
   return (
     <main aria-label="Match detail">
+      {/* ── Global header ── */}
       <header className="app-toolbar">
         <Brand />
-        <button type="button" onClick={handleSwitchMatch}>
-          Switch match
-        </button>
+        <div className="app-toolbar-actions">
+          <WalletConnect
+            connected={wallet.connected}
+            address={wallet.walletAddress}
+            connecting={wallet.connecting}
+            error={wallet.error}
+            onConnect={() =>
+              wallet.connect(
+                selectedAddress,
+                organizerSecretKey ?? undefined,
+                participantSecretKey ?? undefined,
+              )
+            }
+            onDisconnect={handleDisconnect}
+          />
+          <button
+            className="button-quiet"
+            type="button"
+            onClick={handleSwitchMatch}
+          >
+            Switch match
+          </button>
+        </div>
       </header>
-      <WalletConnect
-        connected={wallet.connected}
-        address={wallet.walletAddress}
-        connecting={wallet.connecting}
-        error={wallet.error}
-        onConnect={() =>
-          wallet.connect(
-            selectedAddress,
-            organizerSecretKey ?? undefined,
-            participantSecretKey ?? undefined,
-          )
-        }
-        onDisconnect={handleDisconnect}
-      />
+
+      {/* ── Pre-connect identity inputs (collapsed by default) ── */}
       {!wallet.connected && (
-        <section aria-label="Wallet and identity">
+        <section className="wallet-section" aria-label="Wallet and identity">
           <OrganizerKeyInput
             onImport={setOrganizerSecretKey}
             disabled={wallet.connecting}
@@ -129,6 +139,7 @@ function AppContent() {
           />
         </section>
       )}
+
       <MatchDetail
         match={match}
         predictionStatus={predictionStatus}

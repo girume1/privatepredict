@@ -55,12 +55,12 @@ export function ParticipantKeyInput({
         onClick={() => setOpen((o) => !o)}
         disabled={disabled}
       >
-        <User aria-hidden="true" size={15} />
+        <User aria-hidden="true" size={14} />
         <span>I&apos;m a returning participant</span>
         {open ? (
-          <ChevronUp aria-hidden="true" size={15} />
+          <ChevronUp aria-hidden="true" size={14} />
         ) : (
-          <ChevronDown aria-hidden="true" size={15} />
+          <ChevronDown aria-hidden="true" size={14} />
         )}
       </button>
       {open && (
@@ -78,8 +78,8 @@ export function ParticipantKeyInput({
             />
           </div>
           <p className="organizer-hint">
-            Only needed if your browser storage was cleared or you are
-            connecting from a different browser.
+            Only needed if your browser storage was cleared or you're connecting
+            from a different browser.
           </p>
           {error && (
             <p id="participant-key-error" role="alert" className="deploy-error">

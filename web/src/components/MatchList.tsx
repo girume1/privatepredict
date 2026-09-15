@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { CalendarX2, Plus, Trash2 } from "lucide-react";
+import { ChevronRight, Trash2, Plus } from "lucide-react";
 import { hexToBytes, truncateHex } from "../hex.js";
+import { Brand } from "./Brand.js";
 import type { SavedMatch } from "../matchRegistry.js";
 
 interface MatchListProps {
@@ -50,14 +51,91 @@ export function MatchList({
 
   return (
     <div className="match-list">
-      <h1>Matches</h1>
+      {/* ── Header / nav ── */}
+      <header className="app-toolbar">
+        <Brand />
+      </header>
+
+      {/* ── Hero ── */}
+      <section className="match-list-hero" aria-label="Product introduction">
+        <span className="match-list-hero-eyebrow">Midnight · Privacy dApp</span>
+        <h1 className="match-list-hero-headline">
+          Private
+          <br />
+          <em>Predictions.</em>
+        </h1>
+        <p className="match-list-hero-sub">
+          Predict before kick-off. Keep your pick private. Prove it on-chain
+          after the result.
+        </p>
+      </section>
+
+      {/* ── Match cards ── */}
+      <p className="match-list-section-label">
+        {matches.length > 0 ? "Matches" : "No matches yet"}
+      </p>
 
       {matches.length === 0 ? (
         <div className="empty-state" role="status">
-          <CalendarX2 aria-hidden="true" size={32} />
+          <span className="empty-state-icon" aria-hidden="true">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+              <rect
+                x="4"
+                y="8"
+                width="32"
+                height="28"
+                rx="4"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                fill="none"
+              />
+              <line
+                x1="4"
+                y1="16"
+                x2="36"
+                y2="16"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              />
+              <line
+                x1="14"
+                y1="8"
+                x2="14"
+                y2="16"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              />
+              <line
+                x1="26"
+                y1="8"
+                x2="26"
+                y2="16"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              />
+              <line
+                x1="12"
+                y1="24"
+                x2="28"
+                y2="24"
+                stroke="currentColor"
+                strokeWidth="1"
+                strokeDasharray="2 2"
+              />
+              <line
+                x1="12"
+                y1="28"
+                x2="22"
+                y2="28"
+                stroke="currentColor"
+                strokeWidth="1"
+                strokeDasharray="2 2"
+              />
+            </svg>
+          </span>
           <p>
-            No matches saved yet. Add a match&apos;s contract address below —
-            the organizer shares this after deploying (see DEPLOYMENT.md).
+            No matches saved yet. Add a match address below — the organizer
+            shares this after deploying.
           </p>
         </div>
       ) : (
@@ -72,21 +150,33 @@ export function MatchList({
                 aria-label={`Open match: ${m.label}`}
                 onClick={() => onSelect(m.address)}
               >
-                <span>{m.label}</span>
-                <code>{truncateHex(m.address, 8, 6)}</code>
+                <div className="match-card-teams">
+                  <div className="match-card-vs-row">
+                    <span>{m.label || "Unnamed match"}</span>
+                  </div>
+                  <code className="match-card-address">
+                    {truncateHex(m.address, 8, 6)}
+                  </code>
+                </div>
+                <ChevronRight
+                  className="match-card-arrow"
+                  aria-hidden="true"
+                  size={18}
+                />
               </button>
               <button
                 type="button"
                 aria-label={`Remove ${m.label}`}
                 onClick={() => onRemove(m.address)}
               >
-                <Trash2 aria-hidden="true" size={16} />
+                <Trash2 aria-hidden="true" size={15} />
               </button>
             </li>
           ))}
         </ul>
       )}
 
+      {/* Add match form */}
       {/* Wrapped in <form> so pressing Enter in the address field submits —
           keyboard users should not have to Tab all the way to the button. */}
       <form
@@ -96,13 +186,14 @@ export function MatchList({
           handleAdd();
         }}
       >
+        <p className="match-list-add-title">Add a match</p>
         <div className="deploy-field">
           <label htmlFor="match-address">Contract address</label>
           <input
             id="match-address"
             value={address}
             onChange={(e) => setAddress(e.target.value)}
-            placeholder="Paste a deployed match's contract address"
+            placeholder="Paste a 64-char hex contract address"
             aria-invalid={error ? "true" : undefined}
             aria-describedby={error ? "match-address-error" : undefined}
           />
@@ -117,7 +208,8 @@ export function MatchList({
           />
         </div>
         <button type="submit">
-          <Plus aria-hidden="true" size={16} /> Add match
+          <Plus aria-hidden="true" size={15} />
+          Add match
         </button>
         {error && (
           <p id="match-address-error" role="alert" className="deploy-error">

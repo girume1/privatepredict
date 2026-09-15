@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { MatchState } from "@privatepredict/contract";
+import { LockKeyhole, BarChart2, CheckCircle2 } from "lucide-react";
 import { TransactionStatus } from "./TransactionStatus.js";
 import { useTransactionFlow } from "../useTransactionFlow.js";
 import type { Match, Outcome, TxPhase } from "../types.js";
@@ -12,7 +13,11 @@ interface OrganizerControlsProps {
   onPublishResult: (result: Outcome) => Promise<ActionResult>;
 }
 
-const OUTCOMES: Outcome[] = ["HOME", "DRAW", "AWAY"];
+const OUTCOMES: { value: Outcome; label: string }[] = [
+  { value: "HOME", label: "Home win" },
+  { value: "DRAW", label: "Draw" },
+  { value: "AWAY", label: "Away win" },
+];
 
 /**
  * Organizer-only actions, shown alongside the participant view when the
@@ -80,11 +85,23 @@ export function OrganizerControls({
 
   return (
     <div className="organizer-controls">
-      <h2>Organizer controls</h2>
+      <h2>
+        <LockKeyhole aria-hidden="true" size={13} />
+        Organizer controls
+      </h2>
 
+      {/* Match summary */}
+      <div className="organizer-match-summary">
+        <span className="organizer-match-summary-teams">
+          {match.teamA} vs {match.teamB}
+        </span>
+      </div>
+
+      {/* Close match */}
       {match.matchState === MatchState.OPEN && (
         <div className="organizer-action">
           <button type="button" onClick={handleClose} disabled={!canClose}>
+            <LockKeyhole aria-hidden="true" size={15} />
             Close Match
           </button>
           {!deadlinePassed && (
@@ -101,6 +118,7 @@ export function OrganizerControls({
         </div>
       )}
 
+      {/* Publish result */}
       {match.matchState === MatchState.CLOSED && (
         <div className="organizer-action">
           <label htmlFor="organizer-result-select">Match result</label>
@@ -110,14 +128,15 @@ export function OrganizerControls({
             onChange={(e) => setSelectedResult(e.target.value as Outcome | "")}
             disabled={!isActionable(publishFlow.phase)}
           >
-            <option value="">Select a result…</option>
-            {OUTCOMES.map((outcome) => (
-              <option key={outcome} value={outcome}>
-                {outcome}
+            <option value="">Select result…</option>
+            {OUTCOMES.map(({ value, label }) => (
+              <option key={value} value={value}>
+                {label}
               </option>
             ))}
           </select>
           <button type="button" onClick={handlePublish} disabled={!canPublish}>
+            <BarChart2 aria-hidden="true" size={15} />
             Publish Result
           </button>
           <TransactionStatus
@@ -128,7 +147,17 @@ export function OrganizerControls({
       )}
 
       {match.matchState === MatchState.RESULT_PUBLISHED && (
-        <p>Result published.</p>
+        <p
+          className="organizer-hint"
+          style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}
+        >
+          <CheckCircle2
+            size={15}
+            aria-hidden="true"
+            style={{ color: "var(--success)" }}
+          />
+          Result published on-chain.
+        </p>
       )}
     </div>
   );

@@ -10,9 +10,20 @@ export function MatchSkeleton() {
       aria-busy="true"
       aria-label="Loading match data"
     >
-      <div className="skeleton skeleton--title" />
       <div className="skeleton skeleton--timeline" />
-      <div className="skeleton skeleton--card" />
+      <div
+        className="skeleton skeleton--title"
+        style={{ width: "70%", height: "3rem", marginBottom: "0.5rem" }}
+      />
+      <div
+        className="skeleton skeleton--title"
+        style={{ width: "40%", height: "1rem" }}
+      />
+      <div
+        className="skeleton skeleton--card"
+        style={{ marginTop: "1.5rem" }}
+      />
+      <div className="skeleton skeleton--card" style={{ height: "5rem" }} />
     </div>
   );
 }

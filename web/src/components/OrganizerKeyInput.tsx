@@ -48,12 +48,12 @@ export function OrganizerKeyInput({
         onClick={() => setOpen((o) => !o)}
         disabled={disabled}
       >
-        <LockKeyhole aria-hidden="true" size={15} />
+        <LockKeyhole aria-hidden="true" size={14} />
         <span>I&apos;m the organizer</span>
         {open ? (
-          <ChevronUp aria-hidden="true" size={15} />
+          <ChevronUp aria-hidden="true" size={14} />
         ) : (
-          <ChevronDown aria-hidden="true" size={15} />
+          <ChevronDown aria-hidden="true" size={14} />
         )}
       </button>
       {open && (

@@ -11,10 +11,8 @@ interface WalletConnectProps {
 }
 
 /**
- * Presentational only — does not call any Midnight wallet API itself. The
- * actual wallet connection logic is deferred until it can be built against
- * verified SDK declarations (see CLAUDE.md's "Do not fabricate Midnight SDK
- * APIs" rule); this component just renders whatever state it's given.
+ * Presentational only — does not call any Midnight wallet API itself.
+ * Minimal wallet status pill + connect/disconnect control.
  */
 export function WalletConnect({
   connected,
@@ -32,16 +30,17 @@ export function WalletConnect({
             className="wallet-connect-address"
             aria-label={`Connected wallet: ${address}`}
           >
-            <Wallet aria-hidden="true" size={16} />
+            <span className="wallet-connect-dot" aria-hidden="true" />
+            {/* Truncated address is its own text node so tests can getByText */}
             {truncateHex(address)}
           </span>
-          <button type="button" onClick={onDisconnect}>
+          <button type="button" className="button-quiet" onClick={onDisconnect}>
             Disconnect
           </button>
         </>
       ) : (
         <button type="button" onClick={onConnect} disabled={connecting}>
-          <Wallet aria-hidden="true" size={16} />
+          <Wallet aria-hidden="true" size={15} />
           {connecting ? "Connecting…" : "Connect Wallet"}
         </button>
       )}

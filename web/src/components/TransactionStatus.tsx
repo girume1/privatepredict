@@ -1,4 +1,4 @@
-import { LoaderCircle, CircleCheck, CircleAlert } from "lucide-react";
+import { LoaderCircle, Check, CircleAlert } from "lucide-react";
 import type { TxPhase } from "../types.js";
 import { isBusyPhase } from "../useTransactionFlow.js";
 
@@ -8,6 +8,11 @@ interface TransactionStatusProps {
   errorMessage?: string;
 }
 
+/**
+ * Human-readable labels for each in-flight phase.
+ * These strings are tested by TransactionStatus.test.tsx — do not change
+ * them without updating tests.
+ */
 const BUSY_COPY: Partial<Record<TxPhase, string>> = {
   submitting: "Submitting transaction…",
   proving:
@@ -23,15 +28,13 @@ function truncate(hash: string): string {
 }
 
 /**
- * Purely presentational: it maps the caller-owned TxPhase to copy/icons.
+ * Purely presentational: maps the caller-owned TxPhase to copy/icons.
  * It owns no timers and can never decide success or failure — the parent's
  * useTransactionFlow drives those from the real transaction promise.
  *
  * Accessibility notes:
  * - The aria-live container is ALWAYS rendered (never conditionally unmounted)
- *   so that screen readers register it before any content is inserted. A
- *   live region that mounts at the same time as its content is inserted will
- *   not be announced by most AT.
+ *   so that screen readers register it before any content is inserted.
  * - aria-atomic="true" ensures the whole message is read as a unit.
  * - aria-live="assertive" on errors so failures interrupt and are announced
  *   immediately rather than waiting for the polite queue.
@@ -62,7 +65,7 @@ export function TransactionStatus({
           )}
           {phase === "success" && (
             <p className="transaction-status-row">
-              <CircleCheck aria-hidden="true" size={18} />
+              <Check aria-hidden="true" size={18} />
               Confirmed
               {txHash && <span> — {truncate(txHash)}</span>}
             </p>

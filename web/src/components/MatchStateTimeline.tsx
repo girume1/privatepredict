@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { Check } from "lucide-react";
 import { MatchState } from "@privatepredict/contract";
 
@@ -11,7 +12,7 @@ const STATES: { value: MatchState; label: string; shortLabel: string }[] = [
   {
     value: MatchState.RESULT_PUBLISHED,
     label: "Result published",
-    shortLabel: "Result out",
+    shortLabel: "Result",
   },
 ];
 
@@ -20,10 +21,10 @@ export function matchStateLabel(state: MatchState): string {
 }
 
 /**
- * Horizontal lifecycle tracker (Version B): three connected dots where:
- * - Past steps show a check icon in gray
- * - The current step shows a filled accent dot
- * - Future steps show an outlined gray dot
+ * Horizontal lifecycle tracker: three connected nodes where:
+ * - Past steps show a check icon
+ * - The current step shows a filled accent dot with a glow halo
+ * - Future steps show an outlined dot
  *
  * Collapses to a vertical stepper on narrow screens via CSS (≤480px).
  */
@@ -32,22 +33,26 @@ export function MatchStateTimeline({ current }: MatchStateTimelineProps) {
 
   return (
     <ol className="match-state-timeline" aria-label="Match progress">
-      {STATES.map(({ value, label }, index) => {
+      {STATES.map(({ value, label, shortLabel }, index) => {
         const isPast = index < currentIndex;
         const isActive = value === current;
         const stepClass = isPast ? "past" : isActive ? "active" : "future";
 
         return (
-          <>
+          <Fragment key={label}>
             <li
-              key={label}
               className={`match-state-timeline-step ${stepClass}`}
               aria-current={isActive ? "step" : undefined}
             >
               <div className="match-state-timeline-dot" aria-hidden="true">
-                {isPast && <Check size={14} strokeWidth={3} />}
+                {isPast && <Check size={12} strokeWidth={3} />}
               </div>
-              <span className="match-state-timeline-label">{label}</span>
+              <span
+                className="match-state-timeline-label"
+                data-short={shortLabel}
+              >
+                {label}
+              </span>
             </li>
             {/* Connector line between steps — not after the last step */}
             {index < STATES.length - 1 && (
@@ -57,7 +62,7 @@ export function MatchStateTimeline({ current }: MatchStateTimelineProps) {
                 aria-hidden="true"
               />
             )}
-          </>
+          </Fragment>
         );
       })}
     </ol>

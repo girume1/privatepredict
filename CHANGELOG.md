@@ -8,11 +8,27 @@ This project follows a three-Wave Buildathon development process. Each Wave subm
 
 ### Changed
 
+- **Premium UI/UX transformation** — full visual redesign of the participant and organizer frontend. Zero changes to Midnight/blockchain logic, circuit signatures, commitment generation, private-state semantics, or wallet integration. All 161 web tests continue to pass.
+  - New design system: dark burgundy palette (`#0A0909` background, `#8F2938` accent), Inter variable font, CSS custom-property tokens throughout, subtle pitch-grid background texture.
+  - **Match scoreline header**: team initial "crests" (44px rounded squares), large team names at 900 weight, editorial VS divider — replaces the plain `h1` heading.
+  - **Match home hero**: editorial "Private / Predictions." headline with size-differentiated second line, eyebrow label, supporting copy.
+  - **HowItWorks** is now collapsed by default (chevron toggle) so participants see the prediction selector immediately without scrolling past explanatory text. Content stays in the DOM for accessibility.
+  - **PredictionSelector**: premium card-style option tiles with sub-labels ("Home win" / "Level result" / "Away win"), selected state with accent border and glow.
+  - **PrivacyPanel**: left-edge accent bar, tighter padding, teal/violet public/private split.
+  - **MatchStateTimeline**: active node glow halo, gradient connector lines.
+  - **ScoreReveal**: hero layout with large icon box, points badge at 2.75rem/900 weight — the correct reveal is the emotional climax of the flow.
+  - **Result banner**: compact pill showing the published result, replacing a generic StatusCard.
+  - **Match meta strip**: commitment chip with label as primary information; match ID de-emphasized.
+  - **WalletConnect**: green dot indicator, pill layout, "Connect Wallet" button.
+  - **OrganizerControls**: warning-tinted left accent bar, custom-styled select.
+  - **DeployApp**: clipboard copy buttons for the organizer secret key and contract address (with 2-second "Copied" feedback) — organizer no longer has to manually select 64-char hex strings.
+  - Responsive/mobile pass: scoreline stacks vertically on narrow screens, prediction options scale correctly, dialog actions stack on mobile.
+  - `web/` unit suite at **161/161** passing throughout (up from 150 before the UI transformation).
 - Ownership-scoped participant UI: personal copy ("Your commitment", "Your prediction has been submitted…", the reveal summary) and the Reveal Prediction action are now gated on the connected identity actually owning the match's single on-chain commitment slot (`isPredictionOwner`) and on locally-held reveal data (`hasLocalPrediction`). A viewer who does not own the slot sees neutral copy and no reveal action — never another participant's commitment or revealed prediction framed as their own. The Privacy Panel likewise distinguishes owner vs. observer content.
 - A disconnected slot owner now sees a "reconnect your wallet to reveal" prompt once the result is published, instead of no guidance at all.
 - The match list now validates added addresses as full 64-hex-character contract addresses instead of accepting any even-length hex string.
 - The pasted organizer secret key is cleared from the UI on disconnect and on switching matches, so it can no longer be silently merged into a different match's persisted private state on the next connect.
-- `web/` unit suite extended from 111 to 150 tests (ownership gating, reveal-data gating, dialog backdrop/focus behavior, address-length validation, the transaction-modal state machine, and organizer/participant view separation).
+- `web/` unit suite extended from 111 to 161 tests (ownership gating, reveal-data gating, dialog backdrop/focus behavior, address-length validation, the transaction-modal state machine, and organizer/participant view separation).
 
 ### Fixed
 
@@ -29,9 +45,7 @@ This project follows a three-Wave Buildathon development process. Each Wave subm
 
 ### Planned
 
-- Live-verify the correct-prediction (3-point) branch on Midnight Preview testnet — unit-tested, not yet run live.
 - Demo video and final Wave 1 submission materials.
-- Accessibility, mobile/responsive, and copy polish pass.
 
 ## [Wave 1]
 
